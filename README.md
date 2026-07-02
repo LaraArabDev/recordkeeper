@@ -1,27 +1,27 @@
 <p align="center">
-  <img src="art/banner.png" alt="Filament Recordkeeper" width="100%">
+  <img src="art/banner.png" alt="Recordkeeper" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/tests.yml"><img src="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/static-analysis.yml"><img src="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
-  <a href="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/code-style.yml"><img src="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/code-style.yml/badge.svg" alt="Code Style"></a>
-  <a href="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/load-test.yml"><img src="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/load-test.yml/badge.svg" alt="Load Tests"></a>
-  <a href="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/mutation-testing.yml"><img src="https://github.com/LaraArabDev/filament-recordkeeper/actions/workflows/mutation-testing.yml/badge.svg" alt="Mutation Testing"></a>
-  <a href="https://codecov.io/gh/LaraArabDev/filament-recordkeeper"><img src="https://codecov.io/gh/LaraArabDev/filament-recordkeeper/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/LaraArabDev/filament-recordkeeper"><img src="https://api.scorecard.dev/projects/github.com/LaraArabDev/filament-recordkeeper/badge" alt="OpenSSF Scorecard"></a>
+  <a href="https://github.com/LaraArabDev/recordkeeper/actions/workflows/tests.yml"><img src="https://github.com/LaraArabDev/recordkeeper/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
+  <a href="https://github.com/LaraArabDev/recordkeeper/actions/workflows/static-analysis.yml"><img src="https://github.com/LaraArabDev/recordkeeper/actions/workflows/static-analysis.yml/badge.svg" alt="Static Analysis"></a>
+  <a href="https://github.com/LaraArabDev/recordkeeper/actions/workflows/code-style.yml"><img src="https://github.com/LaraArabDev/recordkeeper/actions/workflows/code-style.yml/badge.svg" alt="Code Style"></a>
+  <a href="https://github.com/LaraArabDev/recordkeeper/actions/workflows/load-test.yml"><img src="https://github.com/LaraArabDev/recordkeeper/actions/workflows/load-test.yml/badge.svg" alt="Load Tests"></a>
+  <a href="https://github.com/LaraArabDev/recordkeeper/actions/workflows/mutation-testing.yml"><img src="https://github.com/LaraArabDev/recordkeeper/actions/workflows/mutation-testing.yml/badge.svg" alt="Mutation Testing"></a>
+  <a href="https://codecov.io/gh/LaraArabDev/recordkeeper"><img src="https://codecov.io/gh/LaraArabDev/recordkeeper/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/LaraArabDev/recordkeeper"><img src="https://api.scorecard.dev/projects/github.com/LaraArabDev/recordkeeper/badge" alt="OpenSSF Scorecard"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT"></a>
 </p>
 
 <p align="center">
-  Audit trail, rollback &amp; data protection for your models, routes &amp; APIs.<br>
-  Built on <a href="https://laravel-auditing.com/">owen-it/laravel-auditing</a> · PHP 8.2–8.4 · Laravel 11 / 12 · Filament 5
+  Headless audit trail, rollback &amp; data protection for your models, routes &amp; APIs.<br>
+  Built on <a href="https://laravel-auditing.com/">owen-it/laravel-auditing</a> · PHP 8.2–8.4 · Laravel 11 / 12
 </p>
 
 ---
 
 ```bash
-composer require laraarabdev/filament-recordkeeper
+composer require laraarabdev/recordkeeper
 php artisan recordkeeper:install
 php artisan migrate
 ```
@@ -41,14 +41,14 @@ laravel-auditing covers model changes. Recordkeeper extends that to everything y
 | Outbound HTTP call from a job | URL, status, duration — linked to the parent job audit |
 | Rollback | Recorded as its own named audit event |
 
-Everything lands in one `audits` table. **Filament 5 is optional** — the core runs fully headless.
+Everything lands in one `audits` table. The package is **fully headless** — no UI framework required.
 
 ---
 
 ## Installation
 
 ```bash
-composer require laraarabdev/filament-recordkeeper
+composer require laraarabdev/recordkeeper
 php artisan recordkeeper:install   # publishes config + migrations
 php artisan migrate
 ```
@@ -59,24 +59,7 @@ Force-overwrite already-published files:
 php artisan recordkeeper:install --force
 ```
 
-### With Filament
-
-```php
-use LaraArabDev\Recordkeeper\Filament\RecordkeeperPlugin;
-
-public function panel(Panel $panel): Panel
-{
-    return $panel->plugins([
-        RecordkeeperPlugin::make()
-            ->enableRollback()
-            ->enableTimeline()
-            ->enableStatsWidget()
-            ->navigationGroup('Audit'),
-    ]);
-}
-```
-
-### Headless (no Filament)
+### Quick Start
 
 ```php
 use LaraArabDev\Recordkeeper\Attributes\Auditable;
@@ -101,7 +84,10 @@ class Order extends Model implements \OwenIt\Auditing\Contracts\Auditable
 | `#[AuditExclude('field')]` | Never write this field to any audit record |
 | `#[Redact('field')]` | Replace value with `***` at write time |
 | `#[Encrypt('field')]` | AES-encrypt in audit; auto-decrypted on rollback |
-| `#[Audit('event.name')]` | Fire a custom named audit event |
+| `#[Audit]` | Configure route-level auditing on controller methods |
+| `#[AuditJob]` | Opt queued jobs into audit tracking |
+| `#[AuditCommand]` | Opt Artisan commands into audit tracking |
+| `#[AuditEvent]` | Opt application events into audit tracking |
 
 ```php
 #[Auditable(events: ['created', 'updated', 'deleted'], tags: ['payments'])]
@@ -124,6 +110,21 @@ Route::middleware('audit')->post('/pay', PayController::class);
 
 // API — stores guard = 'api', resolves actor from token
 Route::middleware(['auth:sanctum', 'audit.api'])->apiResource('orders', OrderApiController::class);
+```
+
+Fine-tune with the `#[Audit]` attribute on controller methods:
+
+```php
+use LaraArabDev\Recordkeeper\Attributes\Audit;
+
+class OrderController extends Controller
+{
+    #[Audit(tag: 'order-update', body: true, response: true, sample: 0.5)]
+    public function update(Request $request, Order $order)
+    {
+        // body & response captured, sampled at 50%
+    }
+}
 ```
 
 ---
@@ -170,7 +171,7 @@ Command audit context:
 ],
 ```
 
-HTTP calls made inside a job are stored in `audit_http_requests` and linked to the parent job audit. Shown as a tab in the Filament detail page.
+HTTP calls made inside a job are stored in `audit_http_requests` and linked to the parent job audit.
 
 ---
 
@@ -254,6 +255,9 @@ Audit::forActor($admin)->get();
 Audit::forBatch('nightly-import')->get();
 Audit::rollbackable()->latest('id')->get();
 Audit::routeHits()->whereDate('created_at', today())->get();
+Audit::jobAudits()->latest()->get();
+Audit::commandAudits()->get();
+Audit::eventAudits()->get();
 ```
 
 ---
@@ -267,30 +271,6 @@ Recordkeeper::log('payment.gateway.timeout', context: [
 ]);
 
 Recordkeeper::log('export.triggered', subject: $order, context: ['format' => 'csv']);
-```
-
----
-
-## Filament — Audit History on Any Resource
-
-```php
-use LaraArabDev\Recordkeeper\Filament\Concerns\HasAuditHistory;
-
-class OrderResource extends Resource
-{
-    use HasAuditHistory;
-}
-```
-
-Or add the relation manager manually:
-
-```php
-use LaraArabDev\Recordkeeper\Filament\RelationManagers\AuditsRelationManager;
-
-public static function getRelationManagers(): array
-{
-    return [AuditsRelationManager::class];
-}
 ```
 
 ---
@@ -373,22 +353,6 @@ composer bench:http     # HttpTracker + HTTP listener
 composer bench:command  # command metrics
 ```
 
-PHP 8.3 · SQLite in-memory · no opcache:
-
-| Operation | Mean |
-|---|---|
-| `HttpTracker` set + clear context | ~0.03 µs |
-| `HttpTracker` start + finish one request | ~0.11 µs |
-| `AttributeResolver::resolve` (cached) | ~0.05 µs |
-| `AttributeResolver::resolve` (cold, `#[Redact]`) | ~4.4 µs |
-| Write one `Audit` row | ~76 µs |
-| Write one `AuditHttpRequest` row | ~62 µs |
-| HTTP listener disabled (zero-cost) | ~10 µs |
-| HTTP listener enabled, sync write | ~96 µs |
-| Command audit with anomaly detection | ~402 µs |
-
-**All features are zero-cost when disabled** — listeners are not registered if the flag is off.
-
 ---
 
 ## Testing
@@ -400,15 +364,23 @@ composer analyse        # phpstan
 composer format         # pint
 ```
 
-| PHP | Laravel | Filament |
-|---|---|---|
-| 8.2 | 11 · 12 | ^5.0 |
-| 8.3 | 11 · 12 | ^5.0 |
-| 8.4 | 11 · 12 | ^5.0 |
+| PHP | Laravel |
+|---|---|
+| 8.2 | 11 · 12 |
+| 8.3 | 11 · 12 |
+| 8.4 | 11 · 12 |
 
 ---
+
+## Security
+
+Please review [our security policy](SECURITY.md) on how to report security vulnerabilities.
+
+## Credits
+
+- [LaraArabDev](https://github.com/LaraArabDev)
+- [All Contributors](../../contributors)
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
-# recordkeeper
