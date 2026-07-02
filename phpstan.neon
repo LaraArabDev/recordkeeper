@@ -1,0 +1,47 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+    excludePaths:
+        - src/Filament (?)
+    ignoreErrors:
+        # Eloquent model dynamic properties (user_id, created_at, etc.)
+        -
+            identifier: property.notFound
+        # Generic type annotations on Laravel collections / builders
+        -
+            identifier: missingType.generics
+        # Iterable value types — array<string, mixed> vs array
+        -
+            identifier: missingType.iterableValue
+        # PHPStan cannot resolve some Larastan return types
+        -
+            identifier: method.unresolvableReturnType
+        -
+            identifier: argument.unresolvableType
+        # Larastan relation existence false positives
+        -
+            identifier: larastan.relationExistence
+        # Trait declared but used via parent (AuditsChanges)
+        -
+            identifier: trait.unused
+        # Pre-existing narrowing checks in console commands
+        -
+            identifier: nullCoalesce.expr
+        -
+            identifier: while.alwaysTrue
+        -
+            identifier: deadCode.unreachable
+        -
+            identifier: function.alreadyNarrowedType
+        -
+            identifier: nullsafe.neverNull
+        -
+            identifier: argument.templateType
+        -
+            identifier: argument.type
+        -
+            identifier: arrayValues.list

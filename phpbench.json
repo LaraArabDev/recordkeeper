@@ -1,0 +1,11 @@
+{
+    "$schema": "https://raw.githubusercontent.com/phpbench/phpbench/master/phpbench.schema.json",
+    "runner.bootstrap": "benchmarks/bootstrap.php",
+    "runner.path": "benchmarks",
+    "report.generators": {
+        "default": {
+            "extends": "aggregate",
+            "cols": ["benchmark", "subject", "revs", "its", "mean", "stdev", "rstdev", "mem_peak"]
+        }
+    }
+}

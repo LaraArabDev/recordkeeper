@@ -1,0 +1,103 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  release:
+    name: Tag & Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.next }}
+      hashes: ${{ steps.hash.outputs.hashes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          COMMIT_MSG=$(git log -1 --format="%s")
+          COMMIT_BODY=$(git log -1 --format="%b")
+
+          RE_BREAKING_SPACE='BREAKING[[:space:]]CHANGE'
+          RE_BREAKING_BANG='^[a-z]+(\([^)]+\))?!:'
+          RE_FEAT='^feat(\([^)]+\))?:'
+          RE_FIX='^(fix|perf|hotfix)(\([^)]+\))?:'
+
+          BUMP=""
+          if echo "$COMMIT_MSG$COMMIT_BODY" | grep -qE "$RE_BREAKING_SPACE" \
+             || echo "$COMMIT_MSG" | grep -qE "$RE_BREAKING_BANG"; then
+            BUMP="major"
+          elif echo "$COMMIT_MSG" | grep -qE "$RE_FEAT"; then
+            BUMP="minor"
+          elif echo "$COMMIT_MSG" | grep -qE "$RE_FIX"; then
+            BUMP="patch"
+          fi
+
+          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next tag
+        if: steps.bump.outputs.bump != ''
+        id: tag
+        run: |
+          git fetch --tags
+          LATEST=$(git tag --sort=-v:refname | head -n1)
+          LATEST=${LATEST:-v0.0.0}
+          V=${LATEST#v}
+          IFS='.' read -r MA MI PA <<< "$V"
+          case "${{ steps.bump.outputs.bump }}" in
+            major) MA=$((MA+1)); MI=0; PA=0;;
+            minor) MI=$((MI+1)); PA=0;;
+            patch) PA=$((PA+1));;
+          esac
+          echo "next=v$MA.$MI.$PA" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag & GitHub release
+        if: steps.bump.outputs.bump != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEXT="${{ steps.tag.outputs.next }}"
+          git tag "$NEXT"
+          git push origin "$NEXT"
+          gh release create "$NEXT" --generate-notes --title "$NEXT"
+
+      - name: Compute artifact hashes for provenance
+        id: hash
+        if: steps.bump.outputs.bump != ''
+        env:
+          TAG: ${{ steps.tag.outputs.next }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO="LaraArabDev/filament-recordkeeper"
+          for i in $(seq 1 10); do
+            STATUS=$(gh api repos/${REPO}/releases/tags/${TAG} --jq '.tag_name' 2>/dev/null || echo "")
+            [ -n "$STATUS" ] && break
+            sleep 3
+          done
+          curl -sSfL "https://github.com/${REPO}/archive/refs/tags/${TAG}.tar.gz" -o "${TAG}.tar.gz"
+          curl -sSfL "https://github.com/${REPO}/archive/refs/tags/${TAG}.zip" -o "${TAG}.zip"
+          HASHES=$(sha256sum "${TAG}.tar.gz" "${TAG}.zip" | base64 -w0)
+          echo "hashes=${HASHES}" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    needs: [release]
+    if: needs.release.outputs.tag != ''
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
+    with:
+      base64-subjects: "${{ needs.release.outputs.hashes }}"
+      upload-assets: true
+      upload-tag-name: "${{ needs.release.outputs.tag }}"

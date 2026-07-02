@@ -1,0 +1,13 @@
+/vendor/
+/node_modules/
+/bootstrap/
+/.phpunit.result.cache
+/.phpunit.cache
+/coverage.xml
+/infection.log
+/.php-cs-fixer.cache
+composer.lock
+.DS_Store
+.idea/
+plan-for-Recordkeeper/
+AI_BUILD_GUIDE.md

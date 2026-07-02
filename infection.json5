@@ -1,0 +1,13 @@
+{
+    "source": {
+        "directories": ["src"],
+        "excludes": ["Filament", "Pipeline"]
+    },
+    "mutators": {
+        "@default": true
+    },
+    "minMsi": 50,
+    "minCoveredMsi": 60,
+    "testFramework": "phpunit",
+    "bootstrap": "vendor/autoload.php"
+}

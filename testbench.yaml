@@ -1,0 +1,13 @@
+providers:
+  - "OwenIt\\Auditing\\AuditingServiceProvider"
+  - "LaraArabDev\\Recordkeeper\\RecordkeeperServiceProvider"
+  - "Workbench\\App\\Providers\\WorkbenchServiceProvider"
+
+workbench:
+  url: http://localhost:8000
+  start: /
+  database: sqlite
+
+env:
+  - RECORDKEEPER_HTTP=false
+  - RECORDKEEPER_COMMANDS=false

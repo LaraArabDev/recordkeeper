@@ -1,0 +1,79 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions: read-all
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    name: PHPBench (PHP 8.3)
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@b604ade2a87db23f8871b7182e69ec5e75effb45 # v2
+        with:
+          php-version: '8.3'
+          extensions: dom, curl, libxml, mbstring, zip, pdo, sqlite, pdo_sqlite, bcmath, intl
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-php-8.3-bench-${{ hashFiles('**/composer.json') }}
+          restore-keys: |
+            ${{ runner.os }}-php-8.3-bench-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Create bootstrap/cache directory
+        run: mkdir -p bootstrap/cache
+
+      - name: Run PHPBench
+        run: |
+          vendor/bin/phpbench run \
+            --report=default \
+            --dump-file=bench.xml \
+            --progress=none
+
+      - name: Extract benchmark metric
+        id: bench
+        if: github.ref == 'refs/heads/main'
+        run: |
+          VALUE=$(php -r '
+            $x = simplexml_load_file("bench.xml");
+            $times = [];
+            foreach ($x->xpath("//iteration") as $i) {
+              $times[] = (float)$i["time-net"];
+            }
+            $mean = count($times) > 0 ? array_sum($times) / count($times) : 0;
+            $ops  = $mean > 0 ? round(1e6 / $mean / 1000) : 0;
+            echo $ops . "K ops/s";
+          ')
+          echo "value=$VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Update benchmark badge
+        if: github.ref == 'refs/heads/main' && env.GIST_SECRET != ''
+        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+        with:
+          auth: ${{ secrets.GIST_SECRET }}
+          gistID: ${{ secrets.BENCH_GIST_ID }}
+          filename: filament-recordkeeper-bench.json
+          label: benchmarks
+          message: ${{ steps.bench.outputs.value }}
+          color: FF3D36
+        env:
+          GIST_SECRET: ${{ secrets.GIST_SECRET }}

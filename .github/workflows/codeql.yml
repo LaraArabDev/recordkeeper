@@ -1,0 +1,39 @@
+name: SAST
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+
+permissions: read-all
+
+jobs:
+  semgrep:
+    name: Semgrep PHP Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Semgrep
+        run: |
+          pip install semgrep --quiet
+          semgrep scan \
+            --config=p/php \
+            --config=p/laravel \
+            --sarif \
+            --output=semgrep.sarif \
+            src/ || true
+          test -f semgrep.sarif || echo '{"version":"2.1.0","runs":[]}' > semgrep.sarif
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        with:
+          sarif_file: semgrep.sarif

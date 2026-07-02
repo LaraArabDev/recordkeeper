@@ -1,0 +1,74 @@
+{
+    "name": "laraarabdev/recordkeeper",
+    "description": "Headless audit trail and rollback for any Laravel app — PHP 8 attributes, route auditing, privacy protection, and Artisan tools. No Filament required.",
+    "keywords": ["laravel", "audit", "recordkeeper", "auditing"],
+    "homepage": "https://github.com/LaraArabDev/recordkeeper",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "LaraArabDev",
+            "email": "contact@laraarabdev.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0",
+        "laravel/prompts": "^0.1|^0.2|^0.3",
+        "owen-it/laravel-auditing": "^13.0|^14.0"
+    },
+    "require-dev": {
+        "infection/infection": "^0.29",
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
+        "mockery/mockery": "^1.6",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "phpbench/phpbench": "^1.7",
+        "phpunit/phpunit": "^11.5.50"
+    },
+    "autoload": {
+        "psr-4": {
+            "LaraArabDev\\Recordkeeper\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "LaraArabDev\\Recordkeeper\\Tests\\": "tests/",
+            "LaraArabDev\\Recordkeeper\\Benchmarks\\": "benchmarks/",
+            "Workbench\\App\\": "workbench/app/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "test:coverage": "pest --coverage --coverage-clover coverage.xml",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "format": "pint",
+        "infection": "infection --threads=4 --min-msi=50 --min-covered-msi=60",
+        "bench": "phpbench run --report=default",
+        "bench:quick": "phpbench run --report=default --revs=3 --iterations=2",
+        "bench:http": "phpbench run --report=default --group=http",
+        "bench:db": "phpbench run --report=default --group=db",
+        "bench:command": "phpbench run --report=default --group=command",
+        "bench:baseline": "phpbench run --store --tag=baseline",
+        "bench:compare": "phpbench report --report=default --tag=baseline --ref=baseline"
+    },
+    "extra": {
+        "laravel": {
+            "providers": ["LaraArabDev\\Recordkeeper\\RecordkeeperServiceProvider"],
+            "aliases": {
+                "Recordkeeper": "LaraArabDev\\Recordkeeper\\Facades\\Recordkeeper"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "infection/extension-installer": true,
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
