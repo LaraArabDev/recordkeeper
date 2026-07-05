@@ -29,9 +29,36 @@ final readonly class AuditPayload
         public ?string $batchId = null,
         public array $context = [],
         public ?string $guard = null,
+        public ?string $source = null,
     ) {}
 
-    /** @return array{event: string, auditable_type: string, auditable_id: int|string|null, old_values: array<string, mixed>, new_values: array<string, mixed>, user_type: ?string, user_id: int|string|null, url: ?string, ip_address: ?string, user_agent: ?string, tags: ?string, batch_id: ?string, context: array<string, mixed>, guard: ?string} */
+    /**
+     * Reconstruct a payload from its snake_case array representation.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            event: $data['event'],
+            auditableType: $data['auditable_type'],
+            auditableId: $data['auditable_id'] ?? null,
+            oldValues: $data['old_values'] ?? [],
+            newValues: $data['new_values'] ?? [],
+            userType: $data['user_type'] ?? null,
+            userId: $data['user_id'] ?? null,
+            url: $data['url'] ?? null,
+            ipAddress: $data['ip_address'] ?? null,
+            userAgent: $data['user_agent'] ?? null,
+            tags: $data['tags'] ?? null,
+            batchId: $data['batch_id'] ?? null,
+            context: $data['context'] ?? [],
+            guard: $data['guard'] ?? null,
+            source: $data['source'] ?? null,
+        );
+    }
+
+    /** @return array{event: string, auditable_type: string, auditable_id: int|string|null, old_values: array<string, mixed>, new_values: array<string, mixed>, user_type: ?string, user_id: int|string|null, url: ?string, ip_address: ?string, user_agent: ?string, tags: ?string, batch_id: ?string, context: array<string, mixed>, guard: ?string, source: ?string} */
     public function toArray(): array
     {
         return [
@@ -49,6 +76,7 @@ final readonly class AuditPayload
             'batch_id' => $this->batchId,
             'context' => $this->context,
             'guard' => $this->guard,
+            'source' => $this->source,
         ];
     }
 }

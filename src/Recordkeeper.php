@@ -116,6 +116,7 @@ class Recordkeeper
             newValues: [],
             batchId: $this->currentBatchId,
             context: array_merge($this->context, $context),
+            source: $subject ? $subject::class : null,
         );
 
         $audit = app(RecordAudit::class)($payload);
@@ -138,6 +139,16 @@ class Recordkeeper
     }
 
     /**
+     * Dispatch a single audit rollback to the queue.
+     */
+    public function rollbackAsync(int|string|Audit $auditOrId): void
+    {
+        $audit = $auditOrId instanceof Audit ? $auditOrId : Audit::findOrFail($auditOrId);
+
+        app(Rollback::class)->revertAsync($audit);
+    }
+
+    /**
      * Revert all audits in a batch atomically within a DB transaction.
      *
      * @return list<mixed>
@@ -147,6 +158,18 @@ class Recordkeeper
     public function rollbackBatch(string $id, bool $dryRun = false): array
     {
         return app(Rollback::class)->revertBatch($id, $dryRun);
+    }
+
+    /**
+     * Dispatch a batch rollback to the queue.
+     */
+    public function rollbackBatchAsync(string $id): void
+    {
+        $audits = Audit::where('batch_id', $id)
+            ->whereIn('event', ['created', 'updated', 'deleted', 'restored'])
+            ->get();
+
+        app(Rollback::class)->revertCollectionAsync($audits);
     }
 
     public function resolveActorUsing(Closure $resolver): static

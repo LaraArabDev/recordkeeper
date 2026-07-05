@@ -38,10 +38,15 @@ parameters:
         -
             identifier: function.alreadyNarrowedType
         -
-            identifier: nullsafe.neverNull
-        -
             identifier: argument.templateType
         -
             identifier: argument.type
         -
             identifier: arrayValues.list
+        # BuildsAuditFilters trait uses hasOption() guards for shared usage across commands
+        -
+            identifier: booleanAnd.leftAlwaysTrue
+        -
+            identifier: ternary.alwaysTrue
+        -
+            identifier: larastan.console.undefinedOption

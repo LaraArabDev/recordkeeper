@@ -24,6 +24,11 @@ final class AuditDriverManager extends Manager
         return config('recordkeeper.driver', 'database');
     }
 
+    /**
+     * Get an audit driver instance by name.
+     *
+     * @param  string|null  $driver
+     */
     public function driver($driver = null): AuditDriver
     {
         return parent::driver($driver);

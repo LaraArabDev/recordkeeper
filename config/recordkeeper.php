@@ -11,16 +11,25 @@ return [
         'mode' => env('RECORDKEEPER_PRIVACY', 'redact'), // redact|encrypt|off
         'mask' => '***',
         'sensitive_patterns' => [
-            'password', 'secret', 'token', 'api_key',
-            'authorization', 'card', 'cvv', 'ssn', 'iban',
+            'password',
+            'secret',
+            'token',
+            'api_key',
+            'authorization',
+            'card',
+            'cvv',
+            'ssn',
+            'iban',
         ],
-        'global_exclude' => ['remember_token'],
+
+        'global_exclude' => ['password', 'remember_token'],
     ],
 
     'rollback' => [
         'enabled' => true,
         'permission' => 'rollback_audits',
         'restore_deleted' => true,
+        'track' => env('RECORDKEEPER_ROLLBACK_TRACK', true),
     ],
 
     /*
@@ -46,13 +55,6 @@ return [
     'guards' => [
         'web' => true,
         'api' => true,
-    ],
-
-    'filament' => [
-        'navigation_group' => 'Audit',
-        'navigation_icon' => 'heroicon-o-clock',
-        'navigation_sort' => 100,
-        'polling_interval' => null,
     ],
 
     'discovery' => [
@@ -81,7 +83,9 @@ return [
     'driver' => env('RECORDKEEPER_DRIVER', 'database'),
 
     'drivers' => [
-        'database' => [],
+        'database' => [
+            'chunk_size' => (int) env('RECORDKEEPER_CHUNK_SIZE', 500),
+        ],
 
         'redis' => [
             'connection' => env('RECORDKEEPER_REDIS_CONNECTION', 'default'),
@@ -154,6 +158,7 @@ return [
 
     'http' => [
         'enabled' => env('RECORDKEEPER_HTTP', false),
+        'mode' => env('RECORDKEEPER_HTTP_MODE', 'auto'), // 'auto' or 'manual'
         'queue' => env('RECORDKEEPER_HTTP_QUEUE', false),
         'queue_name' => env('RECORDKEEPER_HTTP_QUEUE_NAME', null),
         'capture_headers' => env('RECORDKEEPER_HTTP_HEADERS', false),
@@ -162,8 +167,23 @@ return [
         'exclude_hosts' => [],
     ],
 
+    /*
+     * Application event tracking.
+     *
+     * When enabled, ALL non-framework events are audited automatically
+     * (like jobs.enabled). Use 'exclude' to skip specific event classes.
+     * When disabled, only events with #[AuditEvent] or listed in 'listen' are tracked.
+     */
+    'events_tracking' => [
+        'enabled' => env('RECORDKEEPER_EVENTS', false),
+        'exclude' => [],
+    ],
+
+    /*
+     * Explicit event opt-in list (used when events_tracking.enabled = false).
+     * Add event class strings here to audit them without modifying the event class.
+     */
     'listen' => [
-        // Event class strings to audit, e.g.:
         // \App\Events\UserRegistered::class,
     ],
 ];

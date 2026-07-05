@@ -10,6 +10,7 @@ use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
 use Illuminate\Queue\Events\JobQueued;
 use LaraArabDev\Recordkeeper\Attributes\AuditJob;
+use LaraArabDev\Recordkeeper\Concerns\AuditsJob;
 use LaraArabDev\Recordkeeper\Listeners\RecordJobAudit;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Tests\TestCase;
@@ -43,6 +44,42 @@ class TaggedJob {}
 #[AuditJob(tags: ['billing', 'payments'])]
 class MultiTaggedJob {}
 
+class TraitAuditedJob
+{
+    use AuditsJob;
+}
+
+class TraitAuditedJobWithTags
+{
+    use AuditsJob;
+
+    public function auditJobTags(): array
+    {
+        return ['notifications'];
+    }
+}
+
+class TraitAuditedJobQueuedDisabled
+{
+    use AuditsJob;
+
+    public function shouldAuditQueued(): bool
+    {
+        return false;
+    }
+}
+
+#[AuditJob(tags: ['billing'])]
+class TraitAndAttributeJob
+{
+    use AuditsJob;
+
+    public function auditJobTags(): array
+    {
+        return ['trait-tag'];
+    }
+}
+
 /**
  * Feature tests for job lifecycle auditing via the #[AuditJob] attribute.
  */
@@ -69,6 +106,7 @@ final class JobAuditingTest extends TestCase
         $this->assertSame('sync', $audit->context['connection']);
         $this->assertSame('default', $audit->context['queue']);
         $this->assertSame(1, $audit->context['attempts']);
+        $this->assertSame(AuditedJob::class, $audit->source);
     }
 
     #[Test]
@@ -312,6 +350,49 @@ final class JobAuditingTest extends TestCase
 
         $this->assertNotNull($audit);
         $this->assertSame('plain-job', $audit->context['job']);
+    }
+
+    #[Test]
+    public function trait_opts_job_into_auditing(): void
+    {
+        $this->fireProcessed(TraitAuditedJob::class);
+
+        $audit = Audit::where('event', 'job.processed')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame(TraitAuditedJob::class, $audit->context['job']);
+    }
+
+    #[Test]
+    public function trait_custom_tags_are_stored(): void
+    {
+        $this->fireProcessed(TraitAuditedJobWithTags::class);
+
+        $audit = Audit::where('event', 'job.processed')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('notifications', $audit->tags);
+    }
+
+    #[Test]
+    public function trait_toggle_override_prevents_queued_audit(): void
+    {
+        $job = new TraitAuditedJobQueuedDisabled;
+
+        event(new JobQueued('sync', 'default', 'queued-id', $job, [], null));
+
+        $this->assertSame(0, Audit::where('event', 'job.queued')->count());
+    }
+
+    #[Test]
+    public function attribute_overrides_trait_tags(): void
+    {
+        $this->fireProcessed(TraitAndAttributeJob::class);
+
+        $audit = Audit::where('event', 'job.processed')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('billing', $audit->tags);
     }
 
     private function fireProcessed(string $jobClass): void

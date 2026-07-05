@@ -74,6 +74,9 @@ final class TerminalRenderer
         }
     }
 
+    /**
+     * Output data as pretty-printed JSON.
+     */
     public static function json(mixed $data): void
     {
         echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";

@@ -17,9 +17,6 @@ class ShowCommand extends Command
 
     protected $description = 'Show a single audit record with before/after diff';
 
-    /**
-     * Fetch a single audit by ID and render its details with a color-coded diff.
-     */
     public function handle(): int
     {
         $id = $this->argument('id');
@@ -37,6 +34,13 @@ class ShowCommand extends Command
             return self::SUCCESS;
         }
 
+        $this->renderDetail($audit);
+
+        return self::SUCCESS;
+    }
+
+    private function renderDetail(Audit $audit): void
+    {
         $this->newLine();
         $this->line("  <comment>Audit #{$audit->id}</comment>");
         $this->line("  Event:   <info>{$audit->event}</info>");
@@ -58,7 +62,5 @@ class ShowCommand extends Command
         }
 
         $this->newLine();
-
-        return self::SUCCESS;
     }
 }

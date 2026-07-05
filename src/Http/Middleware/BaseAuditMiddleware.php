@@ -36,6 +36,9 @@ abstract class BaseAuditMiddleware
         return auth()->guard($this->guard())->user();
     }
 
+    /**
+     * Handle the incoming request and record an audit entry.
+     */
     public function handle(Request $request, Closure $next, string ...$options): Response
     {
         $opts = $this->parseOptions($options);
@@ -97,6 +100,7 @@ abstract class BaseAuditMiddleware
                 'duration_ms' => $duration,
             ],
             guard: $this->guard(),
+            source: $request->route()?->getName() ?? $request->path(),
         ));
     }
 

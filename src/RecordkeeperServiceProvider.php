@@ -7,14 +7,19 @@ namespace LaraArabDev\Recordkeeper;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 use LaraArabDev\Recordkeeper\Cache\AuditCache;
+use LaraArabDev\Recordkeeper\Console\ExportCommand;
+use LaraArabDev\Recordkeeper\Console\HistoryCommand;
 use LaraArabDev\Recordkeeper\Console\InstallCommand;
 use LaraArabDev\Recordkeeper\Console\PruneCommand;
+use LaraArabDev\Recordkeeper\Console\RestoreCommand;
 use LaraArabDev\Recordkeeper\Console\RollbackCommand;
 use LaraArabDev\Recordkeeper\Console\SearchCommand;
 use LaraArabDev\Recordkeeper\Console\ShowCommand;
 use LaraArabDev\Recordkeeper\Console\StatsCommand;
 use LaraArabDev\Recordkeeper\Console\SyncCommand;
 use LaraArabDev\Recordkeeper\Console\TailCommand;
+use LaraArabDev\Recordkeeper\Console\UndoCommand;
+use LaraArabDev\Recordkeeper\Console\WipeCommand;
 use LaraArabDev\Recordkeeper\Http\Middleware\AuditApi;
 use LaraArabDev\Recordkeeper\Http\Middleware\AuditRoute;
 use LaraArabDev\Recordkeeper\Listeners\RecordCommandAudit;
@@ -81,6 +86,11 @@ class RecordkeeperServiceProvider extends ServiceProvider
             StatsCommand::class,
             PruneCommand::class,
             RollbackCommand::class,
+            HistoryCommand::class,
+            UndoCommand::class,
+            RestoreCommand::class,
+            ExportCommand::class,
+            WipeCommand::class,
         ]);
     }
 
@@ -115,11 +125,7 @@ class RecordkeeperServiceProvider extends ServiceProvider
     private function registerAuditListeners(): void
     {
         $this->app['events']->subscribe(RecordJobAudit::class);
-
-        if (config('recordkeeper.commands.enabled', false)) {
-            $this->app['events']->subscribe(RecordCommandAudit::class);
-        }
-
+        $this->app['events']->subscribe(RecordCommandAudit::class);
         $this->app['events']->listen('*', [RecordEventAudit::class, 'handle']);
 
         if (config('recordkeeper.http.enabled', false)) {

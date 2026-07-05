@@ -41,6 +41,7 @@ class RouteAuditingTest extends TestCase
         $this->assertSame('route.get', $audit->event);
         $this->assertSame(200, $audit->context['status'] ?? null);
         $this->assertSame('web', $audit->guard);
+        $this->assertNotNull($audit->source);
     }
 
     #[Test]

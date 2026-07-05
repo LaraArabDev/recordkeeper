@@ -32,6 +32,9 @@ final class RecordOutboundHttp
         ];
     }
 
+    /**
+     * Record the start time of an outbound HTTP request.
+     */
     public function onSending(RequestSending $event): void
     {
         if (! config('recordkeeper.http.enabled', false) || ! $this->shouldRecord($event->request->url())) {
@@ -41,6 +44,9 @@ final class RecordOutboundHttp
         $this->tracker->startRequest($event->request, microtime(true));
     }
 
+    /**
+     * Record a completed outbound HTTP request with response details.
+     */
     public function onReceived(ResponseReceived $event): void
     {
         if (! config('recordkeeper.http.enabled', false) || ! $this->shouldRecord($event->request->url())) {
@@ -53,6 +59,7 @@ final class RecordOutboundHttp
             'audit_id' => $this->tracker->currentAuditId(),
             'method' => strtoupper($event->request->method()),
             'url' => $event->request->url(),
+            'host' => parse_url($event->request->url(), PHP_URL_HOST),
             'status_code' => $event->response->status(),
             'duration_ms' => $timing['duration_ms'] ?? null,
             'failed' => false,
@@ -73,6 +80,9 @@ final class RecordOutboundHttp
         $this->persist($data);
     }
 
+    /**
+     * Record a failed outbound HTTP connection attempt.
+     */
     public function onFailed(ConnectionFailed $event): void
     {
         if (! config('recordkeeper.http.enabled', false) || ! $this->shouldRecord($event->request->url())) {
@@ -85,6 +95,7 @@ final class RecordOutboundHttp
             'audit_id' => $this->tracker->currentAuditId(),
             'method' => strtoupper($event->request->method()),
             'url' => $event->request->url(),
+            'host' => parse_url($event->request->url(), PHP_URL_HOST),
             'status_code' => null,
             'duration_ms' => $timing['duration_ms'] ?? null,
             'failed' => true,
@@ -92,7 +103,11 @@ final class RecordOutboundHttp
         ]);
     }
 
-    /** @param  array<string, mixed>  $data */
+    /**
+     * Persist the HTTP request record directly or via queue.
+     *
+     * @param  array<string, mixed>  $data
+     */
     private function persist(array $data): void
     {
         if (config('recordkeeper.http.queue', false)) {
@@ -109,11 +124,39 @@ final class RecordOutboundHttp
         AuditHttpRequest::create($data);
     }
 
+    /**
+     * Determine whether the given URL should be recorded based on global excludes,
+     * HTTP mode (auto/manual), and per-class filter config.
+     *
+     * @param  string  $url  The outbound request URL.
+     */
     private function shouldRecord(string $url): bool
     {
         $host = (string) parse_url($url, PHP_URL_HOST);
-        $excluded = config('recordkeeper.http.exclude_hosts', []);
 
-        return ! in_array($host, $excluded, true);
+        // Global exclude_hosts always applies first
+        $excluded = config('recordkeeper.http.exclude_hosts', []);
+        if (in_array($host, $excluded, true)) {
+            return false;
+        }
+
+        $mode = config('recordkeeper.http.mode', 'auto');
+        $filterConfig = $this->tracker->currentFilterConfig();
+
+        if ($mode === 'manual') {
+            // In manual mode, require an active filter config (from attribute/trait)
+            if ($filterConfig === null) {
+                return false;
+            }
+
+            return $filterConfig->allowsHost($host);
+        }
+
+        // Auto mode: if filter config exists, use it; otherwise allow
+        if ($filterConfig !== null) {
+            return $filterConfig->allowsHost($host);
+        }
+
+        return true;
     }
 }

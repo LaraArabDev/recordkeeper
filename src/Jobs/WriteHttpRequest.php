@@ -22,6 +22,9 @@ final class WriteHttpRequest implements ShouldQueue
 
     public function __construct(private readonly array $data) {}
 
+    /**
+     * Persist the outbound HTTP request record to the database.
+     */
     public function handle(): void
     {
         AuditHttpRequest::create($this->data);

@@ -15,6 +15,9 @@ use LaraArabDev\Recordkeeper\Models\Audit;
  */
 final class DatabaseDriver implements AuditDriver
 {
+    /**
+     * Persist an audit payload to the database.
+     */
     public function persist(AuditPayload $payload): Audit
     {
         $audit = new Audit;
@@ -24,13 +27,19 @@ final class DatabaseDriver implements AuditDriver
         return $audit;
     }
 
+    /**
+     * Find an audit record by its ID.
+     */
     public function find(int|string $id): ?Audit
     {
         return Audit::find($id);
     }
 
+    /**
+     * Delete all audit records from the database.
+     */
     public function flush(): void
     {
-        Audit::query()->delete();
+        Audit::query()->forceDelete();
     }
 }

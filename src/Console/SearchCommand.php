@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
-use LaraArabDev\Recordkeeper\Actions\SearchAudits;
+use LaraArabDev\Recordkeeper\Console\Concerns\BuildsAuditFilters;
 use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 
 /**
@@ -13,11 +13,13 @@ use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
  */
 class SearchCommand extends Command
 {
+    use BuildsAuditFilters;
+
     protected $signature = 'recordkeeper:search
         {--model= : Filter by model class name}
         {--event=* : Filter by event (repeatable)}
-        {--user= : Filter by user ID}
-        {--guard= : Filter by guard (web|api)}
+        {--user= : Filter by actor ID (the authenticated user who performed the action)}
+        {--guard= : Filter by auth guard name (e.g. web, api, admin)}
         {--tag= : Filter by tag}
         {--batch= : Filter by batch ID}
         {--since= : From date (e.g. "-7 days")}
@@ -30,45 +32,24 @@ class SearchCommand extends Command
 
     protected $description = 'Search audit records';
 
-    public function __construct(
-        private readonly SearchAudits $searchAudits,
-    ) {
-        parent::__construct();
-    }
-
     /**
-     * Build filters from CLI options, execute the search, and render results.
+     * Build filters from CLI options and render results.
      */
     public function handle(): int
     {
         $limit = (int) $this->option('limit');
         $page = max(1, (int) $this->option('page'));
-        $offset = ($page - 1) * $limit;
-
-        $filters = array_filter([
-            'model' => $this->option('model'),
-            'event' => $this->option('event') ?: null,
-            'user' => $this->option('user'),
-            'guard' => $this->option('guard'),
-            'tag' => $this->option('tag'),
-            'batch' => $this->option('batch'),
-            'since' => $this->option('since') ? strtotime((string) $this->option('since')) !== false
-                ? date('Y-m-d H:i:s', strtotime((string) $this->option('since')))
-                : $this->option('since') : null,
-            'until' => $this->option('until'),
-            'q' => $this->option('q'),
-        ]);
-
-        $audits = ($this->searchAudits)($filters, $limit, $offset);
-
         $format = $this->option('json') ? 'json' : $this->option('format');
 
+        $audits = $this->buildAuditQuery()
+            ->latest()
+            ->limit($limit)
+            ->offset(($page - 1) * $limit)
+            ->builder()
+            ->get();
+
         if ($audits->isEmpty()) {
-            if ($format === 'json') {
-                $this->line('[]');
-            } else {
-                $this->warn('No audit records found.');
-            }
+            $format === 'json' ? $this->line('[]') : $this->warn('No audit records found.');
 
             return self::SUCCESS;
         }

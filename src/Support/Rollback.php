@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Support;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use LaraArabDev\Recordkeeper\Events\RollbackCompleted;
+use LaraArabDev\Recordkeeper\Events\RollbackStarted;
+use LaraArabDev\Recordkeeper\Facades\Recordkeeper;
+use LaraArabDev\Recordkeeper\Jobs\ProcessRollback;
+use LaraArabDev\Recordkeeper\Jobs\ProcessRollbackCollection;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Modifiers\EncryptAttribute;
 
@@ -22,17 +28,58 @@ final class Rollback
      *
      * @throws \RuntimeException If rollback is disabled in config.
      */
-    public function revert(Audit $audit, bool $dryRun = false): mixed
+    public function revert(Audit $audit, bool $dryRun = false, bool $recordTrail = true): mixed
     {
         if (! config('recordkeeper.rollback.enabled', true)) {
             throw new \RuntimeException('Rollback is disabled in recordkeeper config.');
         }
 
-        return match (true) {
+        RollbackStarted::dispatch($audit, $dryRun);
+
+        $result = match (true) {
             $audit->event === 'created' => $this->undoCreate($audit, $dryRun),
             in_array($audit->event, ['deleted', 'forceDeleted'], true) => $this->restore($audit, $dryRun),
             default => $this->undoUpdate($audit, $dryRun),
         };
+
+        if (! $dryRun && $recordTrail && config('recordkeeper.rollback.track', true)) {
+            $this->recordTrail($audit);
+        }
+
+        RollbackCompleted::dispatch($audit, $result);
+
+        return $result;
+    }
+
+    /**
+     * Dispatch a single audit rollback to the queue.
+     */
+    public function revertAsync(Audit $audit, bool $recordTrail = true): void
+    {
+        $job = new ProcessRollback($audit->id, $recordTrail);
+
+        $job->onConnection(config('recordkeeper.queue.connection'))
+            ->onQueue(config('recordkeeper.queue.queue', 'audits'));
+
+        dispatch($job);
+    }
+
+    /**
+     * Dispatch a collection of audit rollbacks to the queue.
+     *
+     * @param  Collection<int, Audit>  $audits
+     */
+    public function revertCollectionAsync(Collection $audits, bool $recordTrail = true): void
+    {
+        $job = new ProcessRollbackCollection(
+            $audits->pluck('id')->map(fn ($id) => (int) $id)->all(),
+            $recordTrail,
+        );
+
+        $job->onConnection(config('recordkeeper.queue.connection'))
+            ->onQueue(config('recordkeeper.queue.queue', 'audits'));
+
+        dispatch($job);
     }
 
     /**
@@ -40,21 +87,61 @@ final class Rollback
      *
      * @return list<mixed>
      */
-    public function revertBatch(string $batchId, bool $dryRun = false): array
+    public function revertBatch(string $batchId, bool $dryRun = false, bool $recordTrail = true): array
     {
         $audits = Audit::where('batch_id', $batchId)
+            ->with('auditable')
             ->whereIn('event', ['created', 'updated', 'deleted', 'restored'])
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
 
         if ($dryRun) {
-            return $audits->map(fn (Audit $a) => $this->revert($a, true))->all();
+            return $audits->map(fn (Audit $a) => $this->revert($a, true, $recordTrail))->all();
         }
 
-        return DB::transaction(function () use ($audits): array {
-            return $audits->map(fn (Audit $a) => $this->revert($a, false))->all();
+        return DB::transaction(function () use ($audits, $recordTrail): array {
+            return $audits->map(fn (Audit $a) => $this->revert($a, false, $recordTrail))->all();
         });
+    }
+
+    /**
+     * Revert an arbitrary collection of audits in reverse chronological order within a transaction.
+     *
+     * @param  Collection<int, Audit>  $audits
+     * @return list<mixed>
+     */
+    public function revertCollection(Collection $audits, bool $dryRun = false, bool $recordTrail = true): array
+    {
+        $sorted = $audits->sortByDesc('created_at')->values();
+
+        if ($dryRun) {
+            return $sorted->map(fn (Audit $a) => $this->revert($a, true, $recordTrail))->all();
+        }
+
+        return DB::transaction(function () use ($sorted, $recordTrail): array {
+            return $sorted->map(fn (Audit $a) => $this->revert($a, false, $recordTrail))->all();
+        });
+    }
+
+    /**
+     * Record a rollback audit trail entry.
+     */
+    private function recordTrail(Audit $audit): void
+    {
+        $eventName = match (true) {
+            $audit->event === 'created' => 'rollback.undo_create',
+            in_array($audit->event, ['deleted', 'forceDeleted'], true) => 'rollback.restore',
+            default => 'rollback.undo_update',
+        };
+
+        $subject = $audit->auditable;
+
+        Recordkeeper::log($eventName, $subject, [
+            'original_audit_id' => $audit->id,
+            'original_event' => $audit->event,
+            'original_changes' => $audit->getModified(),
+        ]);
     }
 
     private function undoCreate(Audit $audit, bool $dryRun): mixed

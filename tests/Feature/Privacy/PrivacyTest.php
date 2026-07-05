@@ -64,6 +64,7 @@ class PrivacyTest extends TestCase
     {
         config(['recordkeeper.privacy.mode' => 'redact']);
         config(['recordkeeper.privacy.sensitive_patterns' => ['password']]);
+        config(['recordkeeper.privacy.global_exclude' => []]); // clear so password is not excluded
         AttributeResolver::clearCache();
 
         Order::create(['status' => 'ok', 'password' => 'supersecret']);
@@ -72,6 +73,20 @@ class PrivacyTest extends TestCase
         $modified = $audit->getModified();
 
         $this->assertSame('***', $modified['password']['new'] ?? null);
+    }
+
+    #[Test]
+    public function globally_excluded_fields_are_not_stored(): void
+    {
+        config(['recordkeeper.privacy.global_exclude' => ['password', 'remember_token']]);
+        AttributeResolver::clearCache();
+
+        Order::create(['status' => 'ok', 'password' => 'supersecret']);
+
+        $audit = Audit::where('event', 'created')->first();
+        $modified = $audit->getModified();
+
+        $this->assertArrayNotHasKey('password', $modified);
     }
 
     #[Test]

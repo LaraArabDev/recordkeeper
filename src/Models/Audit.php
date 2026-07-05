@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LaraArabDev\Recordkeeper\Support\Rollback;
 use OwenIt\Auditing\Models\Audit as BaseAudit;
@@ -29,6 +30,7 @@ use OwenIt\Auditing\Models\Audit as BaseAudit;
  * @property string|null $user_agent
  * @property string|null $batch_id
  * @property string|null $tags
+ * @property string|null $source
  * @property string|null $guard
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -44,10 +46,24 @@ use OwenIt\Auditing\Models\Audit as BaseAudit;
  * @method static Builder<static> jobAudits()
  * @method static Builder<static> commandAudits()
  * @method static Builder<static> eventAudits()
+ * @method static Builder<static> forTag(string $tag)
+ * @method static Builder<static> forSource(string $source)
  */
 class Audit extends BaseAudit
 {
-    use MassPrunable;
+    use MassPrunable, SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::created(function (Audit $audit): void {
+            if (! empty($audit->tags)) {
+                $tags = array_filter(explode(',', $audit->tags));
+                $audit->auditTags()->createMany(
+                    array_map(fn ($t) => ['tag' => trim($t)], $tags)
+                );
+            }
+        });
+    }
 
     /** @var array<string, string> */
     protected $casts = [
@@ -214,6 +230,32 @@ class Audit extends BaseAudit
     }
 
     /**
+     * @return HasMany<AuditTag, $this>
+     */
+    public function auditTags(): HasMany
+    {
+        return $this->hasMany(AuditTag::class);
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeForTag(Builder $query, string $tag): Builder
+    {
+        return $query->whereHas('auditTags', fn (Builder $q) => $q->where('tag', $tag));
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeForSource(Builder $query, string $source): Builder
+    {
+        return $query->where('source', $source);
+    }
+
+    /**
      * Define the prunable query based on configured retention days.
      *
      * Returns a query matching no rows when retention is disabled (days <= 0).
@@ -229,6 +271,22 @@ class Audit extends BaseAudit
         }
 
         return static::query()->where('created_at', '<', Carbon::now()->subDays($days));
+    }
+
+    /**
+     * Override to force-delete pruned audits instead of soft-deleting.
+     */
+    public function pruneAll(int $chunkSize = 1000): int
+    {
+        $size = (int) config('recordkeeper.drivers.database.chunk_size', $chunkSize);
+        $total = 0;
+
+        do {
+            $count = $this->prunable()->limit($size)->forceDelete();
+            $total += $count;
+        } while ($count > 0);
+
+        return $total;
     }
 
     /**

@@ -44,12 +44,18 @@ final class AuditCache
         return $audit;
     }
 
+    /**
+     * Store an audit record in the cache.
+     */
     public function put(Audit $audit): void
     {
         $key = self::PREFIX.$audit->getKey();
         $this->store->put($key, $audit->attributesToArray(), $this->ttl);
     }
 
+    /**
+     * Remove an audit record from the cache.
+     */
     public function forget(int|string $id): void
     {
         $this->store->forget(self::PREFIX.$id);
@@ -67,6 +73,9 @@ final class AuditCache
         }
     }
 
+    /**
+     * Check whether audit caching is enabled in config.
+     */
     public function isEnabled(): bool
     {
         return (bool) config('recordkeeper.cache.enabled', false);

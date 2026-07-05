@@ -32,6 +32,7 @@ class AuditHttpRequest extends Model
         'audit_id',
         'method',
         'url',
+        'host',
         'status_code',
         'duration_ms',
         'failed',

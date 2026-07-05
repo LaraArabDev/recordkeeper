@@ -27,6 +27,9 @@ final class RedisDriver implements AuditDriver
         private readonly int $ttl = 0,
     ) {}
 
+    /**
+     * Persist an audit payload to Redis.
+     */
     public function persist(AuditPayload $payload): Audit
     {
         $id = (string) Str::uuid();
@@ -52,6 +55,9 @@ final class RedisDriver implements AuditDriver
         return $audit;
     }
 
+    /**
+     * Find an audit record by its ID in Redis.
+     */
     public function find(int|string $id): ?Audit
     {
         $json = $this->redis->command('GET', [self::PREFIX.$id]);
@@ -68,6 +74,9 @@ final class RedisDriver implements AuditDriver
         return $audit;
     }
 
+    /**
+     * Delete all audit records from Redis.
+     */
     public function flush(): void
     {
         $ids = $this->redis->command('ZRANGE', [self::INDEX, 0, -1]);

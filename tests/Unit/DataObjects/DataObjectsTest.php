@@ -36,6 +36,7 @@ class DataObjectsTest extends TestCase
             tags: 'finance',
             batchId: 'batch-1',
             context: ['reason' => 'test'],
+            source: 'App\\Jobs\\SendEmail',
         );
 
         $arr = $payload->toArray();
@@ -53,6 +54,7 @@ class DataObjectsTest extends TestCase
         $this->assertSame('finance', $arr['tags']);
         $this->assertSame('batch-1', $arr['batch_id']);
         $this->assertSame(['reason' => 'test'], $arr['context']);
+        $this->assertSame('App\\Jobs\\SendEmail', $arr['source']);
     }
 
     #[Test]
@@ -76,6 +78,25 @@ class DataObjectsTest extends TestCase
         $this->assertNull($arr['tags']);
         $this->assertNull($arr['batch_id']);
         $this->assertSame([], $arr['context']);
+        $this->assertNull($arr['source']);
+    }
+
+    #[Test]
+    public function audit_payload_from_array_reconstructs_source(): void
+    {
+        $data = [
+            'event' => 'job.processed',
+            'auditable_type' => 'job',
+            'auditable_id' => null,
+            'old_values' => [],
+            'new_values' => [],
+            'source' => 'App\\Jobs\\SendEmail',
+        ];
+
+        $payload = AuditPayload::fromArray($data);
+
+        $this->assertSame('App\\Jobs\\SendEmail', $payload->source);
+        $this->assertSame('App\\Jobs\\SendEmail', $payload->toArray()['source']);
     }
 
     #[Test]

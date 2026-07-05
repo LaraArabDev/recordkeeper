@@ -25,10 +25,11 @@ final class PruneAudits
         }
 
         $deleted = 0;
-        $query->chunkById(200, function ($audits) use (&$deleted): void {
+        $chunkSize = (int) config('recordkeeper.drivers.database.chunk_size', 500);
+        $query->chunkById($chunkSize, function ($audits) use (&$deleted): void {
             $ids = $audits->pluck('id')->all();
             $deleted += count($ids);
-            Audit::whereIn('id', $ids)->delete();
+            Audit::whereIn('id', $ids)->forceDelete();
         });
 
         return $deleted;

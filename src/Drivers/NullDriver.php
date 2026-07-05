@@ -15,6 +15,9 @@ use LaraArabDev\Recordkeeper\Models\Audit;
  */
 final class NullDriver implements AuditDriver
 {
+    /**
+     * Create an in-memory audit without persisting.
+     */
     public function persist(AuditPayload $payload): Audit
     {
         $audit = new Audit;
@@ -23,10 +26,16 @@ final class NullDriver implements AuditDriver
         return $audit;
     }
 
+    /**
+     * Find an audit record by its ID (always returns null).
+     */
     public function find(int|string $id): ?Audit
     {
         return null;
     }
 
+    /**
+     * Flush all audit records (no-op for null driver).
+     */
     public function flush(): void {}
 }

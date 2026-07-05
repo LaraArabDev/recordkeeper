@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper\Tests\Feature;
 
+use Illuminate\Console\Command;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Contracts\Console\Kernel;
+use LaraArabDev\Recordkeeper\Concerns\AuditsCommand;
 use LaraArabDev\Recordkeeper\Listeners\RecordCommandAudit;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Tests\TestCase;
@@ -14,6 +17,35 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Console\Input\StringInput;
 use Symfony\Component\Console\Output\NullOutput;
+
+class TraitAuditedCommand extends Command
+{
+    use AuditsCommand;
+
+    protected $signature = 'test:trait-audited';
+
+    public function handle(): int
+    {
+        return 0;
+    }
+}
+
+class TraitAuditedCommandTagged extends Command
+{
+    use AuditsCommand;
+
+    protected $signature = 'test:trait-audited-tagged';
+
+    public function auditCommandTags(): array
+    {
+        return ['maintenance'];
+    }
+
+    public function handle(): int
+    {
+        return 0;
+    }
+}
 
 /**
  * Feature tests for Artisan command auditing via the #[AuditCommand] attribute.
@@ -39,6 +71,7 @@ final class CommandAuditingTest extends TestCase
         $this->assertSame('command', $audit->auditable_type);
         $this->assertSame('cache:clear', $audit->context['command']);
         $this->assertSame(0, $audit->context['exit_code']);
+        $this->assertSame('cache:clear', $audit->source);
     }
 
     #[Test]
@@ -179,12 +212,12 @@ final class CommandAuditingTest extends TestCase
 
         event(new CommandStarting('cache:clear', $input, $output));
 
-        Audit::create(['event' => 'command.finished', 'auditable_type' => 'command', 'old_values' => [], 'new_values' => [], 'context' => ['command' => 'other:cmd']]);
+        Audit::create(['event' => 'command.finished', 'auditable_type' => 'command', 'old_values' => [], 'new_values' => [], 'context' => ['command' => 'other:cmd'], 'source' => 'other:cmd']);
         Audit::create(['event' => 'updated', 'auditable_type' => 'system', 'old_values' => [], 'new_values' => []]);
 
         event(new CommandFinished('cache:clear', $input, $output, 0));
 
-        $audit = Audit::where('event', 'command.finished')->where('context->command', 'cache:clear')->first();
+        $audit = Audit::where('event', 'command.finished')->where('source', 'cache:clear')->first();
 
         $this->assertSame(1, $audit->context['audit_count']);
     }
@@ -214,7 +247,7 @@ final class CommandAuditingTest extends TestCase
                 'auditable_type' => 'command',
                 'old_values' => [],
                 'new_values' => [],
-                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 1],
+                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 1], 'source' => 'cache:clear',
             ]);
         }
 
@@ -257,7 +290,7 @@ final class CommandAuditingTest extends TestCase
                 'auditable_type' => 'command',
                 'old_values' => [],
                 'new_values' => [],
-                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 100],
+                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 100], 'source' => 'cache:clear',
             ]);
         }
 
@@ -298,7 +331,7 @@ final class CommandAuditingTest extends TestCase
                 'auditable_type' => 'command',
                 'old_values' => [],
                 'new_values' => [],
-                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 0],
+                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 0], 'source' => 'cache:clear',
             ]);
         }
 
@@ -331,7 +364,7 @@ final class CommandAuditingTest extends TestCase
                 'auditable_type' => 'command',
                 'old_values' => [],
                 'new_values' => [],
-                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 0, 'audit_count' => 0],
+                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 0, 'audit_count' => 0], 'source' => 'cache:clear',
             ]);
         }
 
@@ -353,7 +386,7 @@ final class CommandAuditingTest extends TestCase
                 'auditable_type' => 'command',
                 'old_values' => [],
                 'new_values' => [],
-                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 0],
+                'context' => ['command' => 'cache:clear', 'exit_code' => 0, 'duration_ms' => 10, 'audit_count' => 0], 'source' => 'cache:clear',
             ]);
         }
 
@@ -362,6 +395,37 @@ final class CommandAuditingTest extends TestCase
         $recent = Audit::where('event', 'command.finished')->latest()->first();
 
         $this->assertArrayNotHasKey('anomaly', $recent->context);
+    }
+
+    #[Test]
+    public function trait_opts_command_into_auditing(): void
+    {
+        config(['recordkeeper.commands.enabled' => false]);
+        $this->app->make(Kernel::class)->registerCommand(new TraitAuditedCommand);
+
+        $this->fireCommand('test:trait-audited', 0);
+
+        $audit = Audit::where('event', 'command.finished')
+            ->where('source', 'test:trait-audited')
+            ->first();
+
+        $this->assertNotNull($audit);
+    }
+
+    #[Test]
+    public function trait_custom_tags_are_stored_on_command(): void
+    {
+        config(['recordkeeper.commands.enabled' => false]);
+        $this->app->make(Kernel::class)->registerCommand(new TraitAuditedCommandTagged);
+
+        $this->fireCommand('test:trait-audited-tagged', 0);
+
+        $audit = Audit::where('event', 'command.finished')
+            ->where('source', 'test:trait-audited-tagged')
+            ->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('maintenance', $audit->tags);
     }
 
     private function fireCommand(string $command, int $exitCode): void

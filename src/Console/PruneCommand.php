@@ -6,12 +6,15 @@ namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
 use LaraArabDev\Recordkeeper\Actions\PruneAudits;
+use LaraArabDev\Recordkeeper\Console\Concerns\ConfirmsAndExecutes;
 
 /**
  * Delete audit records older than a specified number of days.
  */
 class PruneCommand extends Command
 {
+    use ConfirmsAndExecutes;
+
     protected $signature = 'recordkeeper:prune
         {--days= : Delete audits older than this many days}
         {--dry-run : Show count without deleting}
@@ -19,36 +22,31 @@ class PruneCommand extends Command
 
     protected $description = 'Prune old audit records';
 
-    public function __construct(
-        private readonly PruneAudits $pruneAudits,
-    ) {
-        parent::__construct();
-    }
-
     /**
-     * Delete audit records older than the configured or specified retention period.
+     * Delete audit records older than the configured retention period.
      */
-    public function handle(): int
+    public function handle(PruneAudits $pruner): int
     {
         $days = (int) ($this->option('days') ?: config('recordkeeper.retention.default_days', 365));
-        $dryRun = (bool) $this->option('dry-run');
+        $count = $pruner($days, true);
 
-        if ($dryRun) {
-            $count = ($this->pruneAudits)($days, true);
-            $this->info("{$count} audit record(s) would be deleted (older than {$days} days).");
-
-            return self::SUCCESS;
-        }
-
-        if (! $this->option('yes') && ! $this->confirm("Delete audit records older than {$days} days?")) {
-            $this->line('Aborted.');
+        if ($count === 0) {
+            $this->info("No audit records older than {$days} days.");
 
             return self::SUCCESS;
         }
 
-        $deleted = ($this->pruneAudits)($days, false);
-        $this->info("Deleted {$deleted} audit record(s) older than {$days} days.");
+        $this->info("{$count} audit(s) older than {$days} days.");
 
-        return self::SUCCESS;
+        return $this->confirmAndExecute(
+            confirmMessage: "Delete {$count} audit(s) older than {$days} days?",
+            dryRunMessage: "Dry-run — {$count} record(s) would be deleted.",
+            onSync: function () use ($pruner, $days): int {
+                $deleted = $pruner($days, false);
+                $this->info("Deleted {$deleted} audit record(s).");
+
+                return self::SUCCESS;
+            },
+        );
     }
 }

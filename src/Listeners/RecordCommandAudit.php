@@ -10,8 +10,11 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Events\Dispatcher;
 use LaraArabDev\Recordkeeper\Actions\RecordAudit;
 use LaraArabDev\Recordkeeper\Attributes\AuditCommand;
+use LaraArabDev\Recordkeeper\Concerns\AuditsCommand;
+use LaraArabDev\Recordkeeper\Concerns\ResolvesHttpFilterConfig;
 use LaraArabDev\Recordkeeper\DataObjects\AuditPayload;
 use LaraArabDev\Recordkeeper\Models\Audit;
+use LaraArabDev\Recordkeeper\Support\HttpTracker;
 
 /**
  * Subscribe to Artisan command lifecycle events and record audit entries.
@@ -21,6 +24,8 @@ use LaraArabDev\Recordkeeper\Models\Audit;
  */
 final class RecordCommandAudit
 {
+    use ResolvesHttpFilterConfig;
+
     /** @var array<string, float> */
     private static array $startTimes = [];
 
@@ -38,6 +43,9 @@ final class RecordCommandAudit
         ];
     }
 
+    /**
+     * Capture the start time and baseline audit ID for a command.
+     */
     public function onStarting(CommandStarting $event): void
     {
         if (! $this->shouldAudit($event->command)) {
@@ -46,10 +54,25 @@ final class RecordCommandAudit
 
         self::$startTimes[$event->command] = microtime(true);
         self::$startMaxIds[$event->command] = (int) (Audit::max('id') ?? 0);
+
+        if (config('recordkeeper.http.enabled', false)) {
+            $commandClass = $this->resolveCommandClass($event->command);
+            $filterConfig = $commandClass ? $this->resolveHttpFilterConfig($commandClass) : null;
+
+            // Use audit_id=0 since the audit is created in onFinished
+            app(HttpTracker::class)->setContext(0, $filterConfig);
+        }
     }
 
+    /**
+     * Record an audit when a command finishes, with metrics and optional anomaly detection.
+     */
     public function onFinished(CommandFinished $event): void
     {
+        if (config('recordkeeper.http.enabled', false)) {
+            app(HttpTracker::class)->clearContext();
+        }
+
         if (! $this->shouldAudit($event->command)) {
             return;
         }
@@ -89,17 +112,23 @@ final class RecordCommandAudit
             }
         }
 
+        $tags = $this->resolveTags($commandClass, $attr);
+
         ($this->recordAudit)(new AuditPayload(
             event: 'command.finished',
             auditableType: 'command',
             auditableId: null,
             oldValues: [],
             newValues: [],
-            tags: implode(',', $attr?->tags ?? []),
+            tags: implode(',', $tags),
             context: $context,
+            source: $event->command,
         ));
     }
 
+    /**
+     * Determine whether the given command should be audited.
+     */
     private function shouldAudit(?string $command): bool
     {
         if (! config('recordkeeper.enabled', true)) {
@@ -121,7 +150,7 @@ final class RecordCommandAudit
 
         $commandClass = $this->resolveCommandClass($command);
 
-        return $commandClass && $this->attribute($commandClass) !== null;
+        return $commandClass && ($this->attribute($commandClass) !== null || $this->usesTrait($commandClass));
     }
 
     /**
@@ -136,7 +165,7 @@ final class RecordCommandAudit
 
         $history = Audit::commandAudits()
             ->where('event', 'command.finished')
-            ->whereRaw("JSON_EXTRACT(context, '$.command') = ?", [$commandName])
+            ->where('source', $commandName)
             ->latest()
             ->limit($minRuns)
             ->get();
@@ -168,6 +197,11 @@ final class RecordCommandAudit
         ];
     }
 
+    /**
+     * Resolve the command class name from an Artisan command name.
+     *
+     * @return class-string|null
+     */
     private function resolveCommandClass(string $commandName): ?string
     {
         $artisan = app(Kernel::class);
@@ -187,6 +221,47 @@ final class RecordCommandAudit
         return null;
     }
 
+    /**
+     * Resolve tags from attribute, trait, or empty default.
+     *
+     * Priority: attribute > trait > empty.
+     *
+     * @return list<string>
+     */
+    private function resolveTags(?string $commandClass, ?AuditCommand $attr): array
+    {
+        if ($attr !== null) {
+            return $attr->tags;
+        }
+
+        if ($commandClass !== null && $this->usesTrait($commandClass)) {
+            $instance = (new \ReflectionClass($commandClass))->newInstanceWithoutConstructor();
+
+            return $instance->auditCommandTags();
+        }
+
+        return [];
+    }
+
+    /**
+     * Check whether the given class uses the AuditsCommand trait.
+     *
+     * @param  class-string  $commandClass
+     */
+    private function usesTrait(string $commandClass): bool
+    {
+        if (! class_exists($commandClass)) {
+            return false;
+        }
+
+        return in_array(AuditsCommand::class, class_uses_recursive($commandClass), true);
+    }
+
+    /**
+     * Retrieve the #[AuditCommand] attribute instance from a command class, if present.
+     *
+     * @param  class-string  $commandClass
+     */
     private function attribute(string $commandClass): ?AuditCommand
     {
         $attrs = (new \ReflectionClass($commandClass))->getAttributes(AuditCommand::class);

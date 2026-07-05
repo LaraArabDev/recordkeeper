@@ -65,28 +65,47 @@ abstract class TestCase extends OrchestraTestCase
             $table->string('user_agent', 1023)->nullable();
             $table->string('tags')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             // Recordkeeper extension columns
-            $table->string('guard')->nullable()->index();
-            $table->string('batch_id')->nullable()->index();
+            $table->string('guard', 30)->nullable()->index();
+            $table->string('batch_id', 100)->nullable();
             $table->json('context')->nullable();
+            $table->string('source', 255)->nullable()->index();
             $table->index('event');
             $table->index('created_at');
+
+            // Performance indexes
+            $table->index('deleted_at');
+            $table->index('user_id');
+            $table->index(['batch_id', 'event']);
+            $table->index(['event', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'event'], 'audits_auditable_event_index');
         });
 
         Schema::create('audit_http_requests', function (Blueprint $table): void {
             $table->bigIncrements('id');
             $table->unsignedBigInteger('audit_id')->nullable()->index();
-            $table->string('method', 10);
+            $table->string('method', 10)->index();
             $table->text('url');
-            $table->integer('status_code')->nullable();
+            $table->string('host', 255)->nullable()->index();
+            $table->integer('status_code')->nullable()->index();
             $table->integer('duration_ms')->nullable();
-            $table->boolean('failed')->default(false);
+            $table->boolean('failed')->default(false)->index();
             $table->text('exception')->nullable();
             $table->json('request_headers')->nullable();
             $table->json('response_headers')->nullable();
             $table->text('response_body')->nullable();
             $table->timestamp('created_at')->useCurrent();
+        });
+
+        Schema::create('audit_tag', function (Blueprint $table): void {
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('audit_id');
+            $table->foreign('audit_id')->references('id')->on('audits')->cascadeOnDelete();
+            $table->string('tag', 100)->index();
+            $table->index(['audit_id', 'tag']);
         });
 
         // Test orders table

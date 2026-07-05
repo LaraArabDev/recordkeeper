@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Tests\Feature;
 
 use LaraArabDev\Recordkeeper\Attributes\AuditEvent;
+use LaraArabDev\Recordkeeper\Concerns\AuditsEvent;
 use LaraArabDev\Recordkeeper\Listeners\RecordEventAudit;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\AuditQuery;
@@ -40,6 +41,44 @@ class CapturedPlainObjectEvent
 #[AuditEvent(tags: ['user', 'auth'])]
 class MultiTagEvent {}
 
+class TraitAuditedEvent
+{
+    use AuditsEvent;
+}
+
+class TraitAuditedEventTagged
+{
+    use AuditsEvent;
+
+    public function auditEventTags(): array
+    {
+        return ['order'];
+    }
+}
+
+class TraitAuditedEventWithPayload
+{
+    use AuditsEvent;
+
+    public int $amount = 100;
+
+    public function shouldCapturePayload(): bool
+    {
+        return true;
+    }
+}
+
+#[AuditEvent(tags: ['attr-tag'])]
+class TraitAndAttributeEvent
+{
+    use AuditsEvent;
+
+    public function auditEventTags(): array
+    {
+        return ['trait-tag'];
+    }
+}
+
 /**
  * Feature tests for event-based auditing via the #[AuditEvent] attribute.
  */
@@ -57,6 +96,7 @@ final class EventAuditingTest extends TestCase
         $this->assertNotNull($audit);
         $this->assertSame('event', $audit->auditable_type);
         $this->assertSame(UserRegistered::class, $audit->context['event']);
+        $this->assertSame(UserRegistered::class, $audit->source);
     }
 
     #[Test]
@@ -192,5 +232,71 @@ final class EventAuditingTest extends TestCase
         event('eloquent.created: App\Models\Order', []);
 
         $this->assertSame(0, Audit::where('event', 'like', 'event.%')->count());
+    }
+
+    #[Test]
+    public function events_tracking_enabled_audits_all_app_events(): void
+    {
+        config(['recordkeeper.events_tracking.enabled' => true]);
+
+        event(new NonAuditedLaravelEvent);
+
+        $this->assertSame(1, Audit::where('event', 'event.NonAuditedLaravelEvent')->count());
+    }
+
+    #[Test]
+    public function events_tracking_exclude_skips_excluded_events(): void
+    {
+        config(['recordkeeper.events_tracking.enabled' => true]);
+        config(['recordkeeper.events_tracking.exclude' => [NonAuditedLaravelEvent::class]]);
+
+        event(new NonAuditedLaravelEvent);
+
+        $this->assertSame(0, Audit::where('event', 'like', 'event.%')->count());
+    }
+
+    #[Test]
+    public function trait_opts_event_into_auditing(): void
+    {
+        event(new TraitAuditedEvent);
+
+        $audit = Audit::where('event', 'event.TraitAuditedEvent')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('event', $audit->auditable_type);
+    }
+
+    #[Test]
+    public function trait_custom_tags_are_stored_on_event(): void
+    {
+        event(new TraitAuditedEventTagged);
+
+        $audit = Audit::where('event', 'event.TraitAuditedEventTagged')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('order', $audit->tags);
+    }
+
+    #[Test]
+    public function trait_capture_payload_works(): void
+    {
+        event(new TraitAuditedEventWithPayload);
+
+        $audit = Audit::where('event', 'event.TraitAuditedEventWithPayload')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertArrayHasKey('payload', $audit->context);
+        $this->assertSame(100, $audit->context['payload'][0]['amount']);
+    }
+
+    #[Test]
+    public function attribute_overrides_trait_on_event(): void
+    {
+        event(new TraitAndAttributeEvent);
+
+        $audit = Audit::where('event', 'event.TraitAndAttributeEvent')->first();
+
+        $this->assertNotNull($audit);
+        $this->assertSame('attr-tag', $audit->tags);
     }
 }

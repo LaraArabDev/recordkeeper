@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
+use LaraArabDev\Recordkeeper\Actions\TailAudits;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 
@@ -22,12 +23,9 @@ class TailCommand extends Command
 
     protected $description = 'Live-follow audit records (like tail -f)';
 
-    /**
-     * Poll for new audit records and stream them to the console until interrupted.
-     */
-    public function handle(): int
+    public function handle(TailAudits $tailer): int
     {
-        $lastId = (int) (Audit::max('id') ?? 0);
+        $lastId = $tailer->latestId();
         $interval = max(1, (int) $this->option('interval'));
         $json = (bool) $this->option('json');
 
@@ -37,38 +35,39 @@ class TailCommand extends Command
         }
 
         while (true) {
-            $query = Audit::where('id', '>', $lastId)->orderBy('id');
-
-            if ($this->option('model')) {
-                $query->where('auditable_type', 'like', '%'.$this->option('model'));
-            }
-            if ($this->option('event')) {
-                $query->where('event', $this->option('event'));
-            }
-            if ($this->option('guard')) {
-                $query->whereRaw("JSON_EXTRACT(context, '$.guard') = ?", [$this->option('guard')]);
-            }
-
-            $audits = $query->get();
+            $audits = $tailer->poll(
+                $lastId,
+                $this->option('model'),
+                $this->option('event'),
+                $this->option('guard'),
+            );
 
             foreach ($audits as $audit) {
                 $lastId = max($lastId, (int) $audit->id);
-
-                if ($json) {
-                    echo json_encode(TerminalRenderer::auditToRow($audit))."\n";
-                } else {
-                    $time = $audit->created_at?->format('H:i:s') ?? '';
-                    $event = str_pad($audit->event, 20);
-                    $subject = class_basename((string) $audit->auditable_type).' #'.$audit->auditable_id;
-                    $actor = $audit->user_id ? "User #{$audit->user_id}" : 'system';
-                    $changed = implode(', ', array_keys($audit->getModified() ?? []));
-                    $this->line("{$time}  {$event}  {$subject}  {$actor}  {$changed}");
-                }
+                $json
+                    ? $this->renderJson($audit)
+                    : $this->renderLine($audit);
             }
 
             sleep($interval);
         }
 
-        return self::SUCCESS;
+        return self::SUCCESS; // @codeCoverageIgnore
+    }
+
+    private function renderLine(Audit $audit): void
+    {
+        $time = $audit->created_at?->format('H:i:s') ?? '';
+        $event = str_pad($audit->event, 20);
+        $subject = class_basename((string) $audit->auditable_type).' #'.$audit->auditable_id;
+        $actor = $audit->user_id ? "User #{$audit->user_id}" : 'system';
+        $changed = implode(', ', array_keys($audit->getModified() ?? []));
+
+        $this->line("{$time}  {$event}  {$subject}  {$actor}  {$changed}");
+    }
+
+    private function renderJson(Audit $audit): void
+    {
+        $this->line(json_encode(TerminalRenderer::auditToRow($audit)));
     }
 }

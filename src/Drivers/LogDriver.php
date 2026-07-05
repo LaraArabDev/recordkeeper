@@ -22,6 +22,9 @@ final class LogDriver implements AuditDriver
         private readonly string $level = 'info',
     ) {}
 
+    /**
+     * Persist an audit payload to the configured log channel.
+     */
     public function persist(AuditPayload $payload): Audit
     {
         $data = $payload->toArray();
@@ -38,10 +41,16 @@ final class LogDriver implements AuditDriver
         return $audit;
     }
 
+    /**
+     * Find an audit record by its ID (not supported by log driver).
+     */
     public function find(int|string $id): ?Audit
     {
         return null;
     }
 
+    /**
+     * Flush all audit records (no-op for log driver).
+     */
     public function flush(): void {}
 }

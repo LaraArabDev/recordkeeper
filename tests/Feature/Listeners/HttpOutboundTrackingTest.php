@@ -46,6 +46,7 @@ final class HttpOutboundTrackingTest extends TestCase
         $this->assertNotNull($record);
         $this->assertSame('GET', $record->method);
         $this->assertSame('https://api.stripe.com/v1/charges', $record->url);
+        $this->assertSame('api.stripe.com', $record->host);
         $this->assertSame(200, $record->status_code);
         $this->assertFalse($record->failed);
     }
@@ -78,6 +79,7 @@ final class HttpOutboundTrackingTest extends TestCase
         $record = AuditHttpRequest::first();
 
         $this->assertNotNull($record);
+        $this->assertSame('unavailable.example.com', $record->host);
         $this->assertTrue($record->failed);
         $this->assertNull($record->status_code);
     }

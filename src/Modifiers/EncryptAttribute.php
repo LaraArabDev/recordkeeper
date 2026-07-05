@@ -26,11 +26,17 @@ final class EncryptAttribute implements AttributeRedactor
         return self::PREFIX.Crypt::encryptString((string) $value);
     }
 
+    /**
+     * Check whether a value is encrypted with the recordkeeper prefix.
+     */
     public static function isEncrypted(string $value): bool
     {
         return str_starts_with($value, self::PREFIX);
     }
 
+    /**
+     * Decrypt an encrypted audit value, stripping the prefix.
+     */
     public static function decrypt(string $value): string
     {
         if (! self::isEncrypted($value)) {
