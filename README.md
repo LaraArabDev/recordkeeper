@@ -45,7 +45,28 @@
 
 ---
 
-## Why Recordkeeper?
+## What is Recordkeeper?
+
+Recordkeeper is a **Laravel package** that gives your application a complete audit trail — tracking **who** did **what**, **when**, and the ability to **undo it**. It goes far beyond simple model change tracking:
+
+- **Model auditing** — every create, update, delete, and restore is logged automatically with before/after values
+- **Route & API auditing** — log every HTTP request with actor, guard, IP, timing, and status code
+- **Job lifecycle tracking** — follow queued jobs from dispatch through processing to completion or failure
+- **Artisan command auditing** — track command execution with duration, memory usage, and anomaly detection
+- **Application event auditing** — capture custom events with full payload
+- **Outbound HTTP tracking** — record every external API call your jobs make
+- **Privacy protection** — auto-redact sensitive fields (passwords, tokens, SSNs) and AES-encrypt recoverable fields
+- **One-click rollback** — revert any change (single or batch) with dry-run preview
+- **8 Artisan commands** — search, show, tail, stats, rollback, prune, export, and model discovery from the CLI
+- **4 storage drivers** — database, Redis, log, or null for testing
+
+All configured through clean **PHP 8 Attributes** — no config arrays to maintain.
+
+> **Built on top of [owen-it/laravel-auditing](https://laravel-auditing.com/)** — the most popular audit package in the Laravel ecosystem. Recordkeeper installs it automatically as a dependency. If you already use `laravel-auditing`, Recordkeeper is a drop-in enhancement — your existing auditable models keep working.
+
+---
+
+## Why Recordkeeper over plain laravel-auditing?
 
 | Feature | laravel-auditing alone | + Recordkeeper |
 | --- | --- | --- |
@@ -102,7 +123,166 @@ class Payment extends Model { ... }
 Recordkeeper::rollback($auditId);
 ```
 
-**No boilerplate. No config files. No custom middleware.** Just attributes, traits, and you're auditing.
+**No boilerplate. No custom middleware.** Just attributes, traits, and you're auditing.
+
+---
+
+## 📄 Default Configuration
+
+After running `php artisan recordkeeper:install`, a `config/recordkeeper.php` file is published. Here are the **defaults out of the box** — everything works with zero changes:
+
+| Setting | Default | What it means |
+| --- | --- | --- |
+| `enabled` | `true` | Auditing is active |
+| `events` | `['created', 'updated', 'deleted', 'restored']` | All CRUD events tracked |
+| `driver` | `'database'` | Audits stored in `audits` table |
+| `privacy.mode` | `'redact'` | Sensitive fields auto-redacted with `***` |
+| `privacy.global_exclude` | `['password', 'remember_token']` | Never stored in any audit |
+| `rollback.enabled` | `true` | Rollback feature active |
+| `queue.enabled` | `false` | Sync writes (enable for async) |
+| `jobs.enabled` | `false` | Opt-in per job or enable globally |
+| `commands.enabled` | `false` | Opt-in per command or enable globally |
+| `http.enabled` | `false` | Outbound HTTP tracking off by default |
+| `retention.default_days` | `0` | Keep audits forever (set a number to auto-prune) |
+| `strict` | `false` | Failed writes log silently (enable in tests to throw) |
+
+### Full config file
+
+<details>
+<summary><strong>config/recordkeeper.php</strong></summary>
+
+```php
+<?php
+
+declare(strict_types=1);
+
+return [
+    'enabled' => env('RECORDKEEPER_ENABLED', true),
+
+    'events' => ['created', 'updated', 'deleted', 'restored'],
+
+    'privacy' => [
+        'mode' => env('RECORDKEEPER_PRIVACY', 'redact'), // redact|encrypt|off
+        'mask' => '***',
+        'sensitive_patterns' => [
+            'password', 'secret', 'token', 'api_key',
+            'authorization', 'card', 'cvv', 'ssn', 'iban',
+        ],
+        'global_exclude' => ['password', 'remember_token'],
+    ],
+
+    'rollback' => [
+        'enabled' => true,
+        'permission' => 'rollback_audits',
+        'restore_deleted' => true,
+        'track' => env('RECORDKEEPER_ROLLBACK_TRACK', true),
+    ],
+
+    'retention' => [
+        'default_days' => (int) env('RECORDKEEPER_RETENTION_DAYS', 0), // 0 = keep forever
+        'per_model' => [],
+    ],
+
+    'guards' => [
+        'web' => true,
+        'api' => true,
+    ],
+
+    'discovery' => [
+        'paths' => ['app/Models'],
+    ],
+
+    'strict' => env('RECORDKEEPER_STRICT', false),
+
+    'driver' => env('RECORDKEEPER_DRIVER', 'database'),
+
+    'drivers' => [
+        'database' => [
+            'chunk_size' => (int) env('RECORDKEEPER_CHUNK_SIZE', 500),
+        ],
+        'redis' => [
+            'connection' => env('RECORDKEEPER_REDIS_CONNECTION', 'default'),
+            'ttl' => (int) env('RECORDKEEPER_REDIS_TTL', 0),
+        ],
+        'log' => [
+            'channel' => env('RECORDKEEPER_LOG_CHANNEL', 'stack'),
+            'level' => env('RECORDKEEPER_LOG_LEVEL', 'info'),
+        ],
+        'null' => [],
+    ],
+
+    'cache' => [
+        'enabled' => env('RECORDKEEPER_CACHE', false),
+        'store' => env('RECORDKEEPER_CACHE_STORE', null),
+        'ttl' => (int) env('RECORDKEEPER_CACHE_TTL', 300),
+    ],
+
+    'pipeline' => [],
+
+    'queue' => [
+        'enabled' => env('RECORDKEEPER_QUEUE', false),
+        'connection' => env('RECORDKEEPER_QUEUE_CONNECTION', null),
+        'queue' => env('RECORDKEEPER_QUEUE_NAME', 'audits'),
+    ],
+
+    'jobs' => [
+        'enabled' => env('RECORDKEEPER_JOBS', false),
+        'exclude' => [],
+    ],
+
+    'commands' => [
+        'enabled' => env('RECORDKEEPER_COMMANDS', false),
+        'exclude' => [
+            'schedule:run', 'schedule:finish',
+            'queue:work', 'queue:listen',
+            'horizon:work', 'horizon:supervisor',
+            'recordkeeper:tail',
+        ],
+        'metrics' => [
+            'memory' => true,
+            'audit_count' => true,
+            'anomaly' => env('RECORDKEEPER_ANOMALY', false),
+            'anomaly_multiplier' => 2.0,
+            'anomaly_min_runs' => 5,
+        ],
+    ],
+
+    'http' => [
+        'enabled' => env('RECORDKEEPER_HTTP', false),
+        'mode' => env('RECORDKEEPER_HTTP_MODE', 'auto'),
+        'queue' => env('RECORDKEEPER_HTTP_QUEUE', false),
+        'queue_name' => env('RECORDKEEPER_HTTP_QUEUE_NAME', null),
+        'capture_headers' => env('RECORDKEEPER_HTTP_HEADERS', false),
+        'capture_body' => env('RECORDKEEPER_HTTP_BODY', false),
+        'body_limit' => 1000,
+        'exclude_hosts' => [],
+    ],
+
+    'events_tracking' => [
+        'enabled' => env('RECORDKEEPER_EVENTS', false),
+        'exclude' => [],
+    ],
+
+    'listen' => [
+        // \App\Events\UserRegistered::class,
+    ],
+];
+```
+
+</details>
+
+### What works immediately after install
+
+With the default config, **model auditing is fully active** the moment you add the `AuditsChanges` trait:
+
+- All `created`, `updated`, `deleted`, `restored` events are tracked
+- Fields are auto-discovered from `$fillable` and `$casts`
+- `password` and `remember_token` are globally excluded
+- Fields matching `password`, `secret`, `token`, `api_key`, `card`, `cvv`, `ssn`, `iban` are auto-redacted with `***`
+- Audits are stored in the `audits` database table with no expiry
+- Rollback is enabled and ready to use
+
+Everything else (jobs, commands, events, HTTP tracking, queue writes) is **opt-in** — enable when you need it.
 
 ---
 
