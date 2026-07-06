@@ -11,7 +11,7 @@
 [![Code Style](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/code-style.yml?branch=main&label=pint&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/code-style.yml)
 [![PHP](https://img.shields.io/packagist/php-v/laraarabdev/recordkeeper.svg?style=flat-square)](https://packagist.org/packages/laraarabdev/recordkeeper)
 [![Laravel](https://img.shields.io/badge/laravel-11.x%20%7C%2012.x-red?style=flat-square)](https://laravel.com)
-[![Filament](https://img.shields.io/badge/filament-optional-orange?style=flat-square)](https://filamentphp.com)
+
 
 **Headless audit trail, rollback & data protection for Laravel**
 Track every model change, route hit, queued job, Artisan command, and application event — with one-click rollback, privacy controls, and zero config arrays.
