@@ -1,6 +1,19 @@
 # Recordkeeper
 
-**Headless audit trail, rollback & data protection for Laravel**  
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/laraarabdev/recordkeeper.svg?style=flat-square)](https://packagist.org/packages/laraarabdev/recordkeeper)
+[![Total Downloads](https://img.shields.io/packagist/dt/laraarabdev/recordkeeper.svg?style=flat-square)](https://packagist.org/packages/laraarabdev/recordkeeper)
+[![License](https://img.shields.io/packagist/l/laraarabdev/recordkeeper.svg?style=flat-square)](https://packagist.org/packages/laraarabdev/recordkeeper)
+[![Tests](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/tests.yml)
+[![codecov](https://img.shields.io/codecov/c/github/LaraArabDev/recordkeeper?style=flat-square)](https://codecov.io/gh/LaraArabDev/recordkeeper)
+[![Static Analysis](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/static-analysis.yml?branch=main&label=phpstan&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/static-analysis.yml)
+[![Security Audit](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/security.yml?branch=main&label=security&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/security.yml)
+[![Mutation Testing](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/mutation-testing.yml?branch=main&label=infection&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/mutation-testing.yml)
+[![Code Style](https://img.shields.io/github/actions/workflow/status/LaraArabDev/recordkeeper/code-style.yml?branch=main&label=pint&style=flat-square)](https://github.com/LaraArabDev/recordkeeper/actions/workflows/code-style.yml)
+[![PHP](https://img.shields.io/packagist/php-v/laraarabdev/recordkeeper.svg?style=flat-square)](https://packagist.org/packages/laraarabdev/recordkeeper)
+[![Laravel](https://img.shields.io/badge/laravel-11.x%20%7C%2012.x-red?style=flat-square)](https://laravel.com)
+[![Filament](https://img.shields.io/badge/filament-optional-orange?style=flat-square)](https://filamentphp.com)
+
+**Headless audit trail, rollback & data protection for Laravel**
 Track every model change, route hit, queued job, Artisan command, and application event — with one-click rollback, privacy controls, and zero config arrays.
 
 Built on [owen-it/laravel-auditing](https://laravel-auditing.com/) · PHP 8.2 – 8.4 · Laravel 11 / 12
