@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" width="1280" height="520">
+  <defs>
+    <linearGradient id="bg-ar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f0f13"/>
+      <stop offset="100%" stop-color="#1a1a24"/>
+    </linearGradient>
+    <linearGradient id="accent-ar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+    <linearGradient id="cardBg-ar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e1e2a"/>
+      <stop offset="100%" stop-color="#16161f"/>
+    </linearGradient>
+    <radialGradient id="glow-ar" cx="85%" cy="25%" r="40%">
+      <stop offset="0%" stop-color="#dc2626" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#dc2626" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="520" fill="url(#bg-ar)"/>
+  <rect width="1280" height="520" fill="url(#glow-ar)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="180" cy="120" r="80" fill="none" stroke="#dc2626" stroke-opacity="0.08" stroke-width="1.5"/>
+  <circle cx="180" cy="120" r="55" fill="none" stroke="#dc2626" stroke-opacity="0.06" stroke-width="1.5"/>
+  <circle cx="180" cy="120" r="30" fill="none" stroke="#dc2626" stroke-opacity="0.04" stroke-width="1.5"/>
+  <circle cx="180" cy="120" r="5" fill="#dc2626" opacity="0.6"/>
+
+  <!-- Bottom accent bar -->
+  <rect y="512" width="1280" height="8" fill="url(#accent-ar)"/>
+
+  <!-- LaraArabDev branding -->
+  <text x="1220" y="62" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="#dc2626" text-anchor="end">LaraArabDev</text>
+  <line x1="1092" y1="42" x2="1092" y2="72" stroke="#dc2626" stroke-width="2" opacity="0.6"/>
+  <text x="1085" y="50" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94a3b8" text-anchor="end" letter-spacing="2">LARAVEL</text>
+  <text x="1085" y="66" font-family="system-ui, -apple-system, sans-serif" font-size="11" font-weight="600" fill="#94a3b8" text-anchor="end">سجل التدقيق والتراجع</text>
+
+  <!-- Title -->
+  <text x="1220" y="160" font-family="system-ui, -apple-system, sans-serif" font-size="62" font-weight="800" fill="#ffffff" text-anchor="end">Recordkeeper<tspan fill="#dc2626">.</tspan></text>
+
+  <!-- Accent line -->
+  <rect x="1140" y="175" width="80" height="4" rx="2" fill="url(#accent-ar)"/>
+
+  <!-- Arabic tagline -->
+  <text x="1220" y="215" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="#94a3b8" text-anchor="end">سجل تدقيق شامل، تراجع بضغطة واحدة، وحماية بيانات لـ Laravel</text>
+
+  <!-- Feature pills -->
+  <rect x="1060" y="250" width="160" height="36" rx="18" fill="none" stroke="#dc2626" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="1140" y="274" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#f87171" text-anchor="middle">تتبع كل شيء</text>
+
+  <rect x="875" y="250" width="175" height="36" rx="18" fill="none" stroke="#dc2626" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="962" y="274" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#f87171" text-anchor="middle">تراجع بضغطة واحدة</text>
+
+  <rect x="710" y="250" width="155" height="36" rx="18" fill="none" stroke="#dc2626" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="787" y="274" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#f87171" text-anchor="middle">إخفاء وتشفير</text>
+
+  <rect x="540" y="250" width="160" height="36" rx="18" fill="none" stroke="#dc2626" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="620" y="274" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#f87171" text-anchor="middle">PHP 8 Attributes</text>
+
+  <rect x="370" y="250" width="160" height="36" rx="18" fill="none" stroke="#dc2626" stroke-opacity="0.4" stroke-width="1"/>
+  <text x="450" y="274" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#f87171" text-anchor="middle">8 أوامر Artisan</text>
+
+  <!-- Code card -->
+  <rect x="60" y="310" width="520" height="150" rx="12" fill="url(#cardBg-ar)" stroke="#2a2a3a" stroke-width="1"/>
+  <circle cx="84" cy="334" r="5" fill="#ef4444" opacity="0.8"/>
+  <circle cx="100" cy="334" r="5" fill="#eab308" opacity="0.8"/>
+  <circle cx="116" cy="334" r="5" fill="#22c55e" opacity="0.8"/>
+  <text x="80" y="370" font-family="monospace" font-size="12.5" fill="#64748b">// Payment model with audit attributes</text>
+  <text x="80" y="392" font-family="monospace" font-size="12.5"><tspan fill="#c084fc">#[Auditable</tspan><tspan fill="#94a3b8">(</tspan><tspan fill="#fbbf24">events</tspan><tspan fill="#94a3b8">: [</tspan><tspan fill="#86efac">'created'</tspan><tspan fill="#94a3b8">, </tspan><tspan fill="#86efac">'updated'</tspan><tspan fill="#94a3b8">])]</tspan></text>
+  <text x="80" y="414" font-family="monospace" font-size="12.5"><tspan fill="#c084fc">#[Redact</tspan><tspan fill="#94a3b8">(</tspan><tspan fill="#86efac">'cvv'</tspan><tspan fill="#94a3b8">)]</tspan><tspan fill="#64748b">       // ***</tspan></text>
+  <text x="80" y="436" font-family="monospace" font-size="12.5"><tspan fill="#c084fc">#[Encrypt</tspan><tspan fill="#94a3b8">(</tspan><tspan fill="#86efac">'national_id'</tspan><tspan fill="#94a3b8">)]</tspan><tspan fill="#64748b"> // AES</tspan></text>
+
+  <!-- Terminal chip -->
+  <rect x="610" y="340" width="610" height="46" rx="10" fill="#111119" stroke="#2a2a3a" stroke-width="1"/>
+  <text x="630" y="369" font-family="monospace" font-size="14"><tspan fill="#dc2626">$</tspan><tspan fill="#e2e8f0"> php artisan recordkeeper:rollback 1842 --dry-run</tspan></text>
+
+  <!-- Bottom info -->
+  <text x="1220" y="490" font-family="monospace" font-size="13" fill="#64748b" text-anchor="end">MIT · PHP 8.2-8.4 · Laravel 11 / 12</text>
+  <text x="60" y="490" font-family="system-ui, -apple-system, sans-serif" font-size="13" fill="#64748b">نبني، نطوّر، نُمكّن، ونُساهم — مجتمع عربي مفتوح المصدر</text>
+</svg>
