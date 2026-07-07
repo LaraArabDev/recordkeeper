@@ -142,6 +142,7 @@ After running `php artisan recordkeeper:install`, a `config/recordkeeper.php` fi
 | `queue.enabled` | `false` | Sync writes (enable for async) |
 | `jobs.enabled` | `false` | Opt-in per job or enable globally |
 | `commands.enabled` | `false` | Opt-in per command or enable globally |
+| `routes.enabled` | `false` | Global route auditing (all web/api routes) |
 | `http.enabled` | `false` | Outbound HTTP tracking off by default |
 | `retention.default_days` | `0` | Keep audits forever (set a number to auto-prune) |
 | `strict` | `false` | Failed writes log silently (enable in tests to throw) |
@@ -186,6 +187,19 @@ return [
     'guards' => [
         'web' => true,
         'api' => true,
+    ],
+
+    'routes' => [
+        'enabled' => env('RECORDKEEPER_ROUTES', false),
+        'web'     => true,
+        'api'     => true,
+        'exclude' => [
+            'horizon/*', 'telescope/*', '_debugbar/*',
+            '_ignition/*', 'sanctum/*', 'livewire/*', 'health',
+        ],
+        'body'   => false,
+        'sample' => 1.0,
+        'tag'    => null,
     ],
 
     'discovery' => [
@@ -384,9 +398,28 @@ class Invoice extends Model implements \OwenIt\Auditing\Contracts\Auditable
 
 ---
 
-## 🌐 Route & API Auditing
+## 🌐 Incoming Request Auditing (Route & API)
 
-Two middleware aliases registered automatically:
+Track every HTTP request coming **into** your application — who hit which endpoint, when, and what happened.
+
+### What gets recorded
+
+| Field | Description |
+| --- | --- |
+| Route name / path | e.g. `orders.store` or `/api/orders` |
+| HTTP method | `GET`, `POST`, `PUT`, `DELETE`, etc. |
+| Status code | `200`, `404`, `500`, etc. |
+| Duration | Response time in milliseconds |
+| Actor | Authenticated user (resolved via guard) |
+| IP address | Client IP |
+| User agent | Browser / client identifier |
+| Request body | Optional — disabled by default |
+
+Audits are stored in the `audits` table with `auditable_type = 'route'` and events like `route.get`, `route.post`, etc.
+
+### Setup — per-route middleware
+
+Two middleware aliases are registered automatically:
 
 | Middleware | Guard | Actor Resolution |
 | --- | --- | --- |
@@ -405,12 +438,133 @@ Route::middleware(['auth:sanctum', 'audit.api'])->group(function () {
 });
 ```
 
+### Setup — global (audit every route)
+
+Audit **every** web and API route with one env var — no middleware changes needed:
+
+```env
+RECORDKEEPER_ROUTES=true
+```
+
+This pushes audit middleware into the `web` and `api` middleware groups automatically. Routes that already have explicit `audit` or `audit.api` middleware are **never double-audited**.
+
+Configure via `config/recordkeeper.php`:
+
+```php
+'routes' => [
+    'enabled' => env('RECORDKEEPER_ROUTES', false),
+    'web'     => true,       // audit web routes
+    'api'     => true,       // audit api routes
+    'exclude' => [           // skip these paths
+        'horizon/*', 'telescope/*', '_debugbar/*',
+        '_ignition/*', 'sanctum/*', 'livewire/*', 'health',
+    ],
+    'body'   => false,       // capture request body
+    'sample' => 1.0,         // 1.0 = 100%, 0.1 = 10%
+    'tag'    => null,         // optional tag for all global audits
+],
+```
+
 ### Fine-grained control
 
 ```php
 #[Audit(tag: 'checkout', body: true, response: true, sample: 0.5)]
 public function store(Request $request) { ... }
 ```
+
+### Incoming webhooks
+
+Incoming webhooks (e.g. from Stripe, GitHub, Twilio) are just regular HTTP requests hitting your routes. They are audited the same way:
+
+- **Per-route:** add `audit.api` middleware to your webhook route
+- **Global:** enable `RECORDKEEPER_ROUTES=true` — webhooks in `web`/`api` groups are tracked automatically
+
+No special setup required.
+
+---
+
+## 📡 Outbound HTTP Tracking
+
+Track every HTTP request your application makes **to external services** — API calls to Stripe, payment gateways, third-party services, outgoing webhooks, etc.
+
+### What gets recorded
+
+| Field | Description |
+| --- | --- |
+| URL | Full request URL |
+| Host | Extracted hostname (e.g. `api.stripe.com`) |
+| HTTP method | `GET`, `POST`, `PUT`, `DELETE`, etc. |
+| Status code | Response status (`200`, `500`, `null` on connection failure) |
+| Duration | Round-trip time in milliseconds |
+| Failed | Whether the connection failed entirely |
+| Request headers | Optional — disabled by default |
+| Response headers | Optional — disabled by default |
+| Response body | Optional — disabled by default, truncated to `body_limit` |
+
+Outbound requests are stored in a separate `audit_http_requests` table, linked to a parent audit record via `audit_id`.
+
+### Setup
+
+```env
+RECORDKEEPER_HTTP=true
+```
+
+That's it. Recordkeeper hooks into Laravel's built-in HTTP client events (`RequestSending`, `ResponseReceived`, `ConnectionFailed`) — no middleware or code changes needed.
+
+> **Important:** Only requests made through Laravel's `Http::` facade (Illuminate HTTP client) are tracked. Raw cURL or direct Guzzle calls bypass Laravel's events and are **not** captured.
+
+### Configuration
+
+```php
+'http' => [
+    'enabled' => env('RECORDKEEPER_HTTP', false),
+    'mode' => env('RECORDKEEPER_HTTP_MODE', 'auto'), // 'auto' = all, 'manual' = opt-in only
+    'queue' => env('RECORDKEEPER_HTTP_QUEUE', false), // async persistence
+    'queue_name' => env('RECORDKEEPER_HTTP_QUEUE_NAME', null),
+    'capture_headers' => env('RECORDKEEPER_HTTP_HEADERS', false),
+    'capture_body' => env('RECORDKEEPER_HTTP_BODY', false),
+    'body_limit' => 1000,         // truncate response body at N characters
+    'exclude_hosts' => [],        // skip these hosts entirely
+],
+```
+
+### Modes
+
+| Mode | Behavior |
+| --- | --- |
+| `auto` (default) | All outbound HTTP calls are tracked automatically |
+| `manual` | Only track calls made during jobs/contexts that explicitly opt in (via attribute or trait) |
+
+### Excluding hosts
+
+Skip noisy or internal services:
+
+```php
+'exclude_hosts' => ['localhost', 'internal-service.local'],
+```
+
+### Outgoing webhooks
+
+If your app sends webhooks to external services using Laravel's `Http::` client, they are tracked automatically when `http.enabled` is true — no special setup.
+
+```php
+// This is tracked automatically
+Http::post('https://partner-api.com/webhook', $payload);
+```
+
+---
+
+## 🔄 Incoming vs Outbound — at a glance
+
+| | Incoming (Route) | Outbound (HTTP) |
+| --- | --- | --- |
+| **Direction** | External → your app | Your app → external |
+| **What** | Someone hits your endpoints | Your app calls external APIs |
+| **Mechanism** | Middleware on routes | Laravel HTTP client event listener |
+| **Table** | `audits` | `audit_http_requests` |
+| **Enable** | `audit` middleware or `RECORDKEEPER_ROUTES=true` | `RECORDKEEPER_HTTP=true` |
+| **Webhooks** | Incoming webhooks = regular route hits | Outgoing webhooks via `Http::` = tracked |
+| **Code changes** | None (global) or add middleware (per-route) | None — automatic via events |
 
 ---
 
@@ -776,6 +930,14 @@ composer bench:quick     # fast run
 | **Retention** | | |
 | `retention.default_days` | `0` | Prune after N days (0 = forever) |
 | `retention.per_model` | `[]` | Per-model overrides |
+| **Routes (incoming)** | | |
+| `routes.enabled` | `false` | Global route auditing |
+| `routes.web` | `true` | Audit web routes |
+| `routes.api` | `true` | Audit API routes |
+| `routes.exclude` | `['horizon/*',...]` | Paths to skip |
+| `routes.body` | `false` | Capture request body |
+| `routes.sample` | `1.0` | Sampling rate (0.0–1.0) |
+| `routes.tag` | `null` | Tag for global audits |
 | **Queue** | | |
 | `queue.enabled` | `false` | Async audit writes |
 | `queue.connection` | `null` | Queue connection |
@@ -787,10 +949,14 @@ composer bench:quick     # fast run
 | `commands.enabled` | `false` | Track commands |
 | `commands.exclude` | `['schedule:run',...]` | Commands to skip |
 | `commands.metrics.anomaly` | `false` | Anomaly detection |
-| **HTTP** | | |
-| `http.enabled` | `false` | Track outbound HTTP |
-| `http.capture_headers` | `false` | Store headers |
-| `http.capture_body` | `false` | Store body |
+| **HTTP (outbound)** | | |
+| `http.enabled` | `false` | Track outbound HTTP calls |
+| `http.mode` | `'auto'` | `auto` = all, `manual` = opt-in |
+| `http.capture_headers` | `false` | Store request/response headers |
+| `http.capture_body` | `false` | Store response body |
+| `http.body_limit` | `1000` | Truncate body at N chars |
+| `http.exclude_hosts` | `[]` | Hosts to skip |
+| `http.queue` | `false` | Async persistence |
 | **Cache** | | |
 | `cache.enabled` | `false` | Read cache |
 | `cache.ttl` | `300` | Cache TTL (seconds) |

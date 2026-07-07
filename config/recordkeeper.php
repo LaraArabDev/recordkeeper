@@ -57,6 +57,27 @@ return [
         'api' => true,
     ],
 
+    /*
+     * Global route auditing.
+     *
+     * When enabled, ALL routes in the web/api middleware groups are audited
+     * automatically — no need to add 'audit' or 'audit.api' middleware to
+     * individual route groups. Routes with explicit audit middleware are
+     * never double-audited.
+     */
+    'routes' => [
+        'enabled' => env('RECORDKEEPER_ROUTES', false),
+        'web' => true,
+        'api' => true,
+        'exclude' => [
+            'horizon/*', 'telescope/*', '_debugbar/*',
+            '_ignition/*', 'sanctum/*', 'livewire/*', 'health',
+        ],
+        'body' => false,
+        'sample' => 1.0,
+        'tag' => null,
+    ],
+
     'discovery' => [
         'paths' => ['app/Models'],
     ],

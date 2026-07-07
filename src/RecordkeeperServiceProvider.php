@@ -22,6 +22,8 @@ use LaraArabDev\Recordkeeper\Console\UndoCommand;
 use LaraArabDev\Recordkeeper\Console\WipeCommand;
 use LaraArabDev\Recordkeeper\Http\Middleware\AuditApi;
 use LaraArabDev\Recordkeeper\Http\Middleware\AuditRoute;
+use LaraArabDev\Recordkeeper\Http\Middleware\GlobalAuditApi;
+use LaraArabDev\Recordkeeper\Http\Middleware\GlobalAuditRoute;
 use LaraArabDev\Recordkeeper\Listeners\RecordCommandAudit;
 use LaraArabDev\Recordkeeper\Listeners\RecordEventAudit;
 use LaraArabDev\Recordkeeper\Listeners\RecordJobAudit;
@@ -55,6 +57,7 @@ class RecordkeeperServiceProvider extends ServiceProvider
     {
         $this->registerMigrations();
         $this->registerMiddlewareAliases();
+        $this->registerGlobalRouteAuditing();
         $this->registerAuditModel();
         $this->registerAuditListeners();
 
@@ -104,6 +107,23 @@ class RecordkeeperServiceProvider extends ServiceProvider
         $router = $this->app['router'];
         $router->aliasMiddleware('audit', AuditRoute::class);
         $router->aliasMiddleware('audit.api', AuditApi::class);
+    }
+
+    private function registerGlobalRouteAuditing(): void
+    {
+        if (! config('recordkeeper.routes.enabled', false)) {
+            return;
+        }
+
+        $router = $this->app['router'];
+
+        if (config('recordkeeper.routes.web', true)) {
+            $router->pushMiddlewareToGroup('web', GlobalAuditRoute::class);
+        }
+
+        if (config('recordkeeper.routes.api', true)) {
+            $router->pushMiddlewareToGroup('api', GlobalAuditApi::class);
+        }
     }
 
     private function registerAuditModel(): void
