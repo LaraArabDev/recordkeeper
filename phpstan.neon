@@ -25,6 +25,7 @@ parameters:
         # Larastan relation existence false positives
         -
             identifier: larastan.relationExistence
+            reportUnmatched: false
         # Trait declared but used via parent (AuditsChanges)
         -
             identifier: trait.unused

@@ -293,14 +293,13 @@ final class ConcernsTest extends TestCase
     }
 
     #[Test]
-    public function audit_context_pushes_context_to_recordkeeper(): void
+    public function audit_context_pushes_context_to_model_instance(): void
     {
-        $order = new Order;
+        $order = Order::create(['status' => 'pending']);
         $order->auditContext(['reason' => 'admin-fix']);
+        $order->update(['status' => 'shipped']);
 
-        Order::create(['status' => 'pending']);
-
-        $audit = Audit::first();
+        $audit = Audit::where('event', 'updated')->first();
         $this->assertSame('admin-fix', $audit->context['reason'] ?? null);
     }
 

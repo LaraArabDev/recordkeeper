@@ -63,12 +63,14 @@ class RollbackTest extends TestCase
         $order->update(['status' => 'v2']);
         $order->update(['status' => 'v3']);
 
-        // Roll back to v2 — use latest('id') so same-second ties are broken by insertion order
-        Audit::where('event', 'updated')->latest('id')->first()->rollback();
+        $audits = Audit::where('event', 'updated')->latest('id')->get();
+
+        // Roll back v2→v3 to v2
+        $audits[0]->rollback();
         $this->assertSame('v2', $order->fresh()->status);
 
-        // Roll back to v1
-        Audit::where('event', 'updated')->latest('id')->first()->rollback();
+        // Roll back v1→v2 to v1
+        $audits[1]->rollback();
         $this->assertSame('v1', $order->fresh()->status);
     }
 

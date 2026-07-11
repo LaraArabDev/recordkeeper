@@ -91,7 +91,7 @@ final class Rollback
     {
         $audits = Audit::where('batch_id', $batchId)
             ->with('auditable')
-            ->whereIn('event', ['created', 'updated', 'deleted', 'restored'])
+            ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->get();
@@ -207,7 +207,7 @@ final class Rollback
         $instance->disableAuditing();
 
         try {
-            $instance->fill(array_merge($oldValues, ['id' => $audit->auditable_id]));
+            $instance->fill(array_merge($oldValues, [$instance->getKeyName() => $audit->auditable_id]));
             $instance->save();
         } finally {
             $instance->enableAuditing();
@@ -234,7 +234,6 @@ final class Rollback
 
         try {
             $model->fill($oldValues)->save();
-            $audit->delete();
         } finally {
             $model->enableAuditing();
         }

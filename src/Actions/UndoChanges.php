@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper\Actions;
 
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\AuditQuery;
 use LaraArabDev\Recordkeeper\Support\Rollback;

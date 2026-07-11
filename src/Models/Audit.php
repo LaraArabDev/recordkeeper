@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LaraArabDev\Recordkeeper\Support\Rollback;
@@ -53,8 +55,22 @@ class Audit extends BaseAudit
 {
     use MassPrunable, SoftDeletes;
 
+    /** @var list<string> */
+    public const ROLLBACKABLE_EVENTS = ['created', 'updated', 'deleted', 'restored'];
+
+    /** @var list<string> Pseudo-types that are not real Eloquent models. */
+    public const PSEUDO_TYPES = ['route', 'system', 'job', 'command', 'event'];
+
+    /** @return MorphTo<Model, $this> */
+    public function auditable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
     protected static function booted(): void
     {
+        Relation::morphMap(array_fill_keys(self::PSEUDO_TYPES, static::class));
+
         static::created(function (Audit $audit): void {
             if (! empty($audit->tags)) {
                 $tags = array_filter(explode(',', $audit->tags));
@@ -182,7 +198,7 @@ class Audit extends BaseAudit
      */
     public function scopeRollbackable(Builder $query): Builder
     {
-        return $query->whereIn('event', ['created', 'updated', 'deleted', 'restored']);
+        return $query->whereIn('event', self::ROLLBACKABLE_EVENTS);
     }
 
     /**
@@ -315,6 +331,6 @@ class Audit extends BaseAudit
     /** Determine whether this audit's event type supports rollback. */
     public function isRollbackable(): bool
     {
-        return in_array($this->event, ['created', 'updated', 'deleted', 'restored'], true);
+        return in_array($this->event, self::ROLLBACKABLE_EVENTS, true);
     }
 }

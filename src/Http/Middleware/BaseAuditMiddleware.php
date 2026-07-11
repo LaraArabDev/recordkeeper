@@ -108,14 +108,13 @@ abstract class BaseAuditMiddleware
      * Parse middleware parameter string options into a typed array.
      *
      * @param  list<string>  $options
-     * @return array{tag: ?string, body: bool, response: bool, sample: float}
+     * @return array{tag: ?string, body: bool, sample: float}
      */
     protected function parseOptions(array $options): array
     {
         $opts = [
             'tag' => null,
             'body' => false,
-            'response' => false,
             'sample' => 1.0,
         ];
 
@@ -128,12 +127,68 @@ abstract class BaseAuditMiddleware
             $value = trim($value);
 
             $opts[$key] = match ($key) {
-                'body', 'response' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+                'body' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
                 'sample' => (float) $value,
                 default => $value,
             };
         }
 
         return $opts;
+    }
+
+    protected function isExcludedByConfig(Request $request): bool
+    {
+        $exclude = config('recordkeeper.routes.exclude', []);
+
+        return ! empty($exclude) && $request->is(...$exclude);
+    }
+
+    protected function hasExplicitAuditMiddleware(Request $request): bool
+    {
+        $route = $request->route();
+        if (! $route) {
+            return false;
+        }
+
+        $middleware = $route->gatherMiddleware();
+
+        foreach ($middleware as $m) {
+            if (
+                $m === 'audit'
+                || $m === 'audit.api'
+                || $m === AuditRoute::class
+                || $m === AuditApi::class
+                || str_starts_with((string) $m, AuditRoute::class.':')
+                || str_starts_with((string) $m, AuditApi::class.':')
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return array{tag: ?string, body: bool, sample: float} */
+    protected function buildGlobalOptionsFromConfig(): array
+    {
+        return [
+            'tag' => config('recordkeeper.routes.tag'),
+            'body' => (bool) config('recordkeeper.routes.body', false),
+            'sample' => (float) config('recordkeeper.routes.sample', 1.0),
+        ];
+    }
+
+    /** @return list<string> */
+    protected function optsToStrings(array $opts): array
+    {
+        $strings = [];
+        foreach ($opts as $key => $value) {
+            if ($value === null || $value === false) {
+                continue;
+            }
+            $strings[] = $key.'='.(is_bool($value) ? 'true' : (string) $value);
+        }
+
+        return $strings;
     }
 }

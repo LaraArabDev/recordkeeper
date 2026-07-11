@@ -30,6 +30,12 @@ trait AuditsChanges
 
     protected int $auditThreshold = 0;
 
+    /** @var list<string> */
+    protected array $resolvedAuditTags = [];
+
+    /** @var array<string, mixed> */
+    protected array $pendingAuditContext = [];
+
     /** Bootstrap audit configuration from PHP 8 attributes and global config. */
     public function initializeAuditsChanges(): void
     {
@@ -40,15 +46,14 @@ trait AuditsChanges
         $this->auditEvents = $resolved->auditEvents;
         $this->attributeModifiers = $resolved->attributeModifiers;
         $this->auditThreshold = $resolved->auditThreshold;
+        $this->resolvedAuditTags = $resolved->auditTags;
     }
 
     /** @return list<string> */
     public function generateTags(): array
     {
-        $resolved = AttributeResolver::resolve($this);
-
         return array_merge(
-            $resolved->auditTags,
+            $this->resolvedAuditTags,
             app(Recordkeeper::class)->currentTags(),
         );
     }
@@ -88,7 +93,18 @@ trait AuditsChanges
             }
         }
 
-        return app(Recordkeeper::class)->decorate($data);
+        $data = app(Recordkeeper::class)->decorate($data);
+
+        if (! empty($this->pendingAuditContext)) {
+            $existing = $data['context'] ?? [];
+            if (is_string($existing)) {
+                $existing = json_decode($existing, true) ?? [];
+            }
+            $data['context'] = array_merge((array) $existing, $this->pendingAuditContext);
+            $this->pendingAuditContext = [];
+        }
+
+        return $data;
     }
 
     /**
@@ -98,7 +114,7 @@ trait AuditsChanges
      */
     public function auditContext(array $context): static
     {
-        app(Recordkeeper::class)->pushContext($context);
+        $this->pendingAuditContext = array_merge($this->pendingAuditContext, $context);
 
         return $this;
     }

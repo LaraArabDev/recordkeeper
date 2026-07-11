@@ -100,7 +100,7 @@ final class AuditSoftDeleteTest extends TestCase
     }
 
     #[Test]
-    public function rollback_of_update_soft_deletes_audit_record(): void
+    public function rollback_of_update_preserves_audit_record(): void
     {
         config(['recordkeeper.rollback.enabled' => true]);
         config(['recordkeeper.rollback.track' => false]);
@@ -111,9 +111,8 @@ final class AuditSoftDeleteTest extends TestCase
         $audit = Audit::where('event', 'updated')->first();
         $audit->rollback();
 
-        // The update audit should be soft-deleted after rollback
-        $this->assertNull(Audit::find($audit->id));
-        $this->assertNotNull(Audit::withTrashed()->find($audit->id));
+        // The update audit should be preserved after rollback (audit trail is not destroyed)
+        $this->assertNotNull(Audit::find($audit->id));
     }
 
     #[Test]

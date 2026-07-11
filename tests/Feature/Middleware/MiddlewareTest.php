@@ -80,7 +80,6 @@ class MiddlewareTest extends TestCase
 
         $this->assertSame(null, $result['tag']);
         $this->assertFalse($result['body']);
-        $this->assertFalse($result['response']);
         $this->assertSame(1.0, $result['sample']);
     }
 
@@ -91,11 +90,10 @@ class MiddlewareTest extends TestCase
         $parseOptions = new \ReflectionMethod($middleware, 'parseOptions');
         $parseOptions->setAccessible(true);
 
-        $result = $parseOptions->invoke($middleware, ['tag=finance', 'body=true', 'response=false', 'sample=0.5']);
+        $result = $parseOptions->invoke($middleware, ['tag=finance', 'body=true', 'sample=0.5']);
 
         $this->assertSame('finance', $result['tag']);
         $this->assertTrue($result['body']);
-        $this->assertFalse($result['response']);
         $this->assertSame(0.5, $result['sample']);
     }
 

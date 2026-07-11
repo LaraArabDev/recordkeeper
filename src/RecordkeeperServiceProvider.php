@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper;
 
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 use LaraArabDev\Recordkeeper\Cache\AuditCache;
 use LaraArabDev\Recordkeeper\Console\ExportCommand;
@@ -132,14 +131,6 @@ class RecordkeeperServiceProvider extends ServiceProvider
             'audit.implementation',
             Audit::class
         );
-
-        Relation::morphMap([
-            'route' => Audit::class,
-            'system' => Audit::class,
-            'job' => Audit::class,
-            'command' => Audit::class,
-            'event' => Audit::class,
-        ]);
     }
 
     private function registerAuditListeners(): void

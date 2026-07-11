@@ -28,6 +28,11 @@ class Recordkeeper
 
     private ?Closure $actorResolver = null;
 
+    public function __construct(
+        private readonly Rollback $rollback,
+        private readonly RecordAudit $recordAudit,
+    ) {}
+
     /**
      * Execute a callback within a named audit batch.
      *
@@ -119,7 +124,7 @@ class Recordkeeper
             source: $subject ? $subject::class : null,
         );
 
-        $audit = app(RecordAudit::class)($payload);
+        $audit = ($this->recordAudit)($payload);
 
         ChangeRecorded::dispatch($audit);
 
@@ -135,7 +140,7 @@ class Recordkeeper
     {
         $audit = $auditOrId instanceof Audit ? $auditOrId : Audit::findOrFail($auditOrId);
 
-        return app(Rollback::class)->revert($audit, $dryRun);
+        return $this->rollback->revert($audit, $dryRun);
     }
 
     /**
@@ -145,7 +150,7 @@ class Recordkeeper
     {
         $audit = $auditOrId instanceof Audit ? $auditOrId : Audit::findOrFail($auditOrId);
 
-        app(Rollback::class)->revertAsync($audit);
+        $this->rollback->revertAsync($audit);
     }
 
     /**
@@ -157,7 +162,7 @@ class Recordkeeper
      */
     public function rollbackBatch(string $id, bool $dryRun = false): array
     {
-        return app(Rollback::class)->revertBatch($id, $dryRun);
+        return $this->rollback->revertBatch($id, $dryRun);
     }
 
     /**
@@ -166,10 +171,13 @@ class Recordkeeper
     public function rollbackBatchAsync(string $id): void
     {
         $audits = Audit::where('batch_id', $id)
-            ->whereIn('event', ['created', 'updated', 'deleted', 'restored'])
+            ->with('auditable')
+            ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
-        app(Rollback::class)->revertCollectionAsync($audits);
+        $this->rollback->revertCollectionAsync($audits);
     }
 
     public function resolveActorUsing(Closure $resolver): static
