@@ -6,6 +6,7 @@ namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
 use LaraArabDev\Recordkeeper\Console\Concerns\BuildsAuditFilters;
+use LaraArabDev\Recordkeeper\Console\Concerns\RendersAuditOutput;
 use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 
 /**
@@ -14,6 +15,7 @@ use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 class SearchCommand extends Command
 {
     use BuildsAuditFilters;
+    use RendersAuditOutput;
 
     protected $signature = 'recordkeeper:search
         {--model= : Filter by model class name}
@@ -27,7 +29,6 @@ class SearchCommand extends Command
         {--q= : Free-text search}
         {--limit=25 : Number of results}
         {--page=1 : Page number}
-        {--json : Output as JSON}
         {--format=table : Output format (table|json|csv)}';
 
     protected $description = 'Search audit records';
@@ -37,30 +38,25 @@ class SearchCommand extends Command
      */
     public function handle(): int
     {
-        $limit = (int) $this->option('limit');
-        $page = max(1, (int) $this->option('page'));
-        $format = $this->option('json') ? 'json' : $this->option('format');
+        $format = (string) $this->option('format');
+
+        if (! $this->validateFormat($format)) {
+            return self::FAILURE;
+        }
 
         $audits = $this->buildAuditQuery()
             ->latest()
-            ->limit($limit)
-            ->offset(($page - 1) * $limit)
+            ->paginate((int) $this->option('limit'), max(1, (int) $this->option('page')))
             ->builder()
             ->get();
 
         if ($audits->isEmpty()) {
-            $format === 'json' ? $this->line('[]') : $this->warn('No audit records found.');
+            $this->renderEmpty($format);
 
             return self::SUCCESS;
         }
 
-        $rows = $audits->map(fn ($a) => TerminalRenderer::auditToRow($a))->all();
-
-        match ($format) {
-            'json' => TerminalRenderer::json($rows),
-            'csv' => TerminalRenderer::csv(array_keys($rows[0]), $rows),
-            default => TerminalRenderer::table(array_keys($rows[0]), $rows),
-        };
+        $this->renderRows(TerminalRenderer::mapToRows($audits), $format);
 
         return self::SUCCESS;
     }

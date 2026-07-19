@@ -44,7 +44,7 @@ class HistoryCommand extends Command
         }
 
         if ($this->option('format') === 'json') {
-            TerminalRenderer::json($audits->map(fn ($a) => TerminalRenderer::auditToRow($a))->all());
+            TerminalRenderer::json(TerminalRenderer::mapToRows($audits));
 
             return self::SUCCESS;
         }
@@ -57,7 +57,7 @@ class HistoryCommand extends Command
     /**
      * @param  Collection<int, Audit>  $audits
      */
-    private function renderTimeline($audits, string $model, string $id): void
+    private function renderTimeline(Collection $audits, string $model, string $id): void
     {
         $this->info("History for {$model} #{$id} ({$audits->count()} records):");
         $this->newLine();
