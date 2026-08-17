@@ -125,14 +125,18 @@ class AttributeResolverTest extends TestCase
     }
 
     #[Test]
-    public function privacy_mode_off_returns_empty_modifiers(): void
+    public function privacy_mode_off_clears_redact_modifiers_but_keeps_encrypt(): void
     {
         config(['recordkeeper.privacy.mode' => 'off']);
         AttributeResolver::clearCache();
 
         $config = AttributeResolver::resolve(Order::class);
 
-        $this->assertEmpty($config->attributeModifiers);
+        // Redact modifiers should be removed when privacy is off
+        $this->assertNotContains(RedactAttribute::class, $config->attributeModifiers);
+
+        // Encrypt modifiers should be preserved regardless of privacy mode
+        $this->assertContains(EncryptAttribute::class, $config->attributeModifiers);
     }
 
     // ------------------------------------------------------------------

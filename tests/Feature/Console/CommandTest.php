@@ -46,7 +46,7 @@ class CommandTest extends TestCase
     {
         Order::create(['status' => 'pending']);
 
-        $this->artisan('recordkeeper:search', ['--json' => true, '--limit' => '10'])
+        $this->artisan('recordkeeper:search', ['--format' => 'json', '--limit' => '10'])
             ->assertExitCode(0);
     }
 
@@ -57,7 +57,7 @@ class CommandTest extends TestCase
         $order = Order::create(['status' => 'b']);
         $order->update(['status' => 'c']);
 
-        $this->artisan('recordkeeper:search', ['--event' => ['updated'], '--json' => true])
+        $this->artisan('recordkeeper:search', ['--event' => ['updated'], '--format' => 'json'])
             ->assertExitCode(0);
     }
 
@@ -72,14 +72,14 @@ class CommandTest extends TestCase
             'guard' => 'api',
         ]);
 
-        $this->artisan('recordkeeper:search', ['--guard' => 'api', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--guard' => 'api', '--format' => 'json'])
             ->assertExitCode(0);
     }
 
     #[Test]
     public function search_command_returns_empty_json_array_when_no_results(): void
     {
-        $this->artisan('recordkeeper:search', ['--json' => true])
+        $this->artisan('recordkeeper:search', ['--format' => 'json'])
             ->expectsOutputToContain('[]')
             ->assertExitCode(0);
     }
@@ -237,7 +237,7 @@ class CommandTest extends TestCase
     {
         Order::create(['status' => 'pending']);
 
-        $this->artisan('recordkeeper:search', ['--since' => '-7 days', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--since' => '-7 days', '--format' => 'json'])
             ->assertExitCode(0);
     }
 
@@ -248,7 +248,7 @@ class CommandTest extends TestCase
             Order::create(['status' => "s{$i}"]);
         }
 
-        $this->artisan('recordkeeper:search', ['--limit' => '2', '--page' => '2', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--limit' => '2', '--page' => '2', '--format' => 'json'])
             ->assertExitCode(0);
     }
 
@@ -265,7 +265,7 @@ class CommandTest extends TestCase
     {
         Recordkeeper::batch('test-batch', fn () => Order::create(['status' => 'batched']));
 
-        $this->artisan('recordkeeper:search', ['--batch' => 'test-batch', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--batch' => 'test-batch', '--format' => 'json'])
             ->assertExitCode(0);
     }
 
@@ -274,7 +274,7 @@ class CommandTest extends TestCase
     {
         Order::create(['status' => 'ok']);
 
-        $this->artisan('recordkeeper:search', ['--tag' => 'finance', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--tag' => 'finance', '--format' => 'json'])
             ->assertExitCode(0);
     }
 
@@ -283,7 +283,7 @@ class CommandTest extends TestCase
     {
         Order::create(['status' => 'ok']);
 
-        $this->artisan('recordkeeper:search', ['--model' => 'Order', '--json' => true])
+        $this->artisan('recordkeeper:search', ['--model' => 'Order', '--format' => 'json'])
             ->assertExitCode(0);
     }
 

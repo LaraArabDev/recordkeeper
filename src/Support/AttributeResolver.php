@@ -31,8 +31,11 @@ final class AttributeResolver
     {
         $class = is_object($model) ? $model::class : $model;
 
-        if (isset(self::$cache[$class])) {
-            return self::$cache[$class];
+        $privacyMode = config('recordkeeper.privacy.mode', 'redact');
+        $cacheKey = $class.':'.$privacyMode;
+
+        if (isset(self::$cache[$cacheKey])) {
+            return self::$cache[$cacheKey];
         }
 
         $ref = new ReflectionClass($class);
@@ -94,8 +97,6 @@ final class AttributeResolver
             }
         }
 
-        $privacyMode = config('recordkeeper.privacy.mode', 'redact');
-
         if ($privacyMode !== 'off') {
             $patterns = config('recordkeeper.privacy.sensitive_patterns', []);
             $properties = self::guessModelAttributes($model);
@@ -112,7 +113,7 @@ final class AttributeResolver
                 }
             }
         } else {
-            $modifiers = [];
+            $modifiers = array_filter($modifiers, fn (string $m) => $m !== RedactAttribute::class);
         }
 
         $config = new AuditConfig(
@@ -125,7 +126,7 @@ final class AttributeResolver
             retentionDays: $retentionDays,
         );
 
-        self::$cache[$class] = $config;
+        self::$cache[$cacheKey] = $config;
 
         return $config;
     }

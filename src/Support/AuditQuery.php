@@ -225,6 +225,14 @@ final class AuditQuery
     }
 
     /**
+     * Paginate results by limit and page number.
+     */
+    public function paginate(int $limit, int $page): static
+    {
+        return $this->limit($limit)->offset(($page - 1) * $limit);
+    }
+
+    /**
      * Filter to only job audit events.
      */
     public function jobs(): static

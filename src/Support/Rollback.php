@@ -177,6 +177,13 @@ final class Rollback
 
         $oldValues = $this->decryptValues((array) ($audit->old_values ?? []));
 
+        if ($audit->event === 'forceDeleted' && empty($oldValues)) {
+            throw new \RuntimeException(
+                'Cannot rollback force-deleted record: insufficient data in old_values. '
+                .'Ensure auditing captures full model attributes on force-delete events.'
+            );
+        }
+
         if ($dryRun) {
             return ['action' => 'restore', 'attributes' => $oldValues];
         }

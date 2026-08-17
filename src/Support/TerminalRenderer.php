@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper\Support;
 
+use Illuminate\Support\Collection;
 use LaraArabDev\Recordkeeper\Models\Audit;
 
 /**
@@ -104,6 +105,17 @@ final class TerminalRenderer
             fputcsv($out, $row);
         }
         fclose($out);
+    }
+
+    /**
+     * Map a collection of audits to row arrays.
+     *
+     * @param  Collection<int, Audit>  $audits
+     * @return list<array{id: int, event: string, subject: string, actor: string, changed: string, batch: string, created: string}>
+     */
+    public static function mapToRows(Collection $audits): array
+    {
+        return $audits->map(fn (Audit $a) => self::auditToRow($a))->all();
     }
 
     /** @return array{id: int, event: string, subject: string, actor: string, changed: string, batch: string, created: string} */
