@@ -43,7 +43,7 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Run redaction invariant tests
-        run: vendor/bin/pest tests/Feature/RedactionInvariantTest.php
+        run: vendor/bin/pest tests/Feature/Models/RedactionInvariantTest.php
 
   k6-load-test:
     name: k6 Load Test
