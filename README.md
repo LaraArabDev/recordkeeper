@@ -225,12 +225,6 @@ return [
         'null' => [],
     ],
 
-    'cache' => [
-        'enabled' => env('RECORDKEEPER_CACHE', false),
-        'store' => env('RECORDKEEPER_CACHE_STORE', null),
-        'ttl' => (int) env('RECORDKEEPER_CACHE_TTL', 300),
-    ],
-
     'pipeline' => [],
 
     'queue' => [
@@ -957,9 +951,6 @@ composer bench:quick     # fast run
 | `http.body_limit` | `1000` | Truncate body at N chars |
 | `http.exclude_hosts` | `[]` | Hosts to skip |
 | `http.queue` | `false` | Async persistence |
-| **Cache** | | |
-| `cache.enabled` | `false` | Read cache |
-| `cache.ttl` | `300` | Cache TTL (seconds) |
 
 </details>
 

@@ -22,7 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Batch audit grouping via `Recordkeeper::batch()`
 - Manual event logging via `Recordkeeper::log()`
 - Fluent audit query builder (`AuditQuery`)
-- Read-through caching layer for audits
 - Four storage drivers: database, redis, log, null
 - Async queue support for audit writes
 - Route sampling for high-traffic scenarios
