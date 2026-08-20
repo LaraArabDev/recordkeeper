@@ -15,6 +15,7 @@ final class WipeAudits
     /**
      * Delete all audits matching the given query in chunks.
      *
+     * @param  AuditQuery  $query  The query defining which audit records to delete.
      * @return int Number of deleted records.
      */
     public function __invoke(AuditQuery $query): int

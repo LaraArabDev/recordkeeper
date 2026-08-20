@@ -8,7 +8,6 @@ use Closure;
 use Illuminate\Database\Eloquent\Model;
 use LaraArabDev\Recordkeeper\Actions\RecordAudit;
 use LaraArabDev\Recordkeeper\DataObjects\AuditPayload;
-use LaraArabDev\Recordkeeper\Events\ChangeRecorded;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\Rollback;
 
@@ -22,8 +21,10 @@ class Recordkeeper
 {
     private ?string $currentBatchId = null;
 
+    /** @var list<string> */
     private array $currentTags = [];
 
+    /** @var array<string, mixed> */
     private array $context = [];
 
     private ?Closure $actorResolver = null;
@@ -51,16 +52,29 @@ class Recordkeeper
         }
     }
 
+    /**
+     * Get the active batch ID, or null if not inside a batch.
+     */
     public function currentBatchId(): ?string
     {
         return $this->currentBatchId;
     }
 
+    /**
+     * Get the tags applied to subsequent audits.
+     *
+     * @return list<string>
+     */
     public function currentTags(): array
     {
         return $this->currentTags;
     }
 
+    /**
+     * Set the tags applied to subsequent audits.
+     *
+     * @param  list<string>  $tags
+     */
     public function withTags(array $tags): static
     {
         $this->currentTags = $tags;
@@ -81,11 +95,10 @@ class Recordkeeper
         }
 
         if (! empty($this->context)) {
-            $existing = $auditRow['context'] ?? [];
-            if (is_string($existing)) {
-                $existing = json_decode($existing, true) ?? [];
-            }
-            $auditRow['context'] = array_merge((array) $existing, $this->context);
+            $auditRow['context'] = array_merge(
+                $this->normalizeContext($auditRow['context'] ?? []),
+                $this->context,
+            );
         }
 
         return $auditRow;
@@ -101,6 +114,9 @@ class Recordkeeper
         $this->context = array_merge($this->context, $context);
     }
 
+    /**
+     * Clear the ambient context.
+     */
     public function clearContext(): void
     {
         $this->context = [];
@@ -124,11 +140,7 @@ class Recordkeeper
             source: $subject ? $subject::class : null,
         );
 
-        $audit = ($this->recordAudit)($payload);
-
-        ChangeRecorded::dispatch($audit);
-
-        return $audit;
+        return ($this->recordAudit)($payload);
     }
 
     /**
@@ -171,15 +183,15 @@ class Recordkeeper
     public function rollbackBatchAsync(string $id): void
     {
         $audits = Audit::where('batch_id', $id)
-            ->with('auditable')
             ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
             ->get();
 
         $this->rollback->revertCollectionAsync($audits);
     }
 
+    /**
+     * Set a custom actor resolver callback.
+     */
     public function resolveActorUsing(Closure $resolver): static
     {
         $this->actorResolver = $resolver;
@@ -187,6 +199,9 @@ class Recordkeeper
         return $this;
     }
 
+    /**
+     * Resolve the current authenticated actor using the custom resolver or default auth.
+     */
     public function resolveActor(): mixed
     {
         if ($this->actorResolver !== null) {
@@ -196,8 +211,25 @@ class Recordkeeper
         return auth()->user();
     }
 
+    /**
+     * Check whether Recordkeeper is enabled in config.
+     */
     public function isEnabled(): bool
     {
         return (bool) config('recordkeeper.enabled', true);
+    }
+
+    /**
+     * Normalize a context value to an array (handles string JSON from DB).
+     *
+     * @return array<string, mixed>
+     */
+    public function normalizeContext(mixed $context): array
+    {
+        if (is_array($context)) {
+            return $context;
+        }
+
+        return is_string($context) ? (json_decode($context, true) ?? []) : [];
     }
 }

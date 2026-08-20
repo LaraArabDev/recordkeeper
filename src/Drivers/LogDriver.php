@@ -17,6 +17,12 @@ use LaraArabDev\Recordkeeper\Models\Audit;
  */
 final class LogDriver implements AuditDriver
 {
+    /**
+     * Create a new log audit driver instance.
+     *
+     * @param  string  $channel  The Laravel log channel name.
+     * @param  string  $level  The log level to write at (e.g. info, debug).
+     */
     public function __construct(
         private readonly string $channel = 'stack',
         private readonly string $level = 'info',
@@ -24,6 +30,9 @@ final class LogDriver implements AuditDriver
 
     /**
      * Persist an audit payload to the configured log channel.
+     *
+     * @param  AuditPayload  $payload  The audit data to persist.
+     * @return Audit The in-memory audit model instance (not database-persisted).
      */
     public function persist(AuditPayload $payload): Audit
     {
@@ -43,6 +52,9 @@ final class LogDriver implements AuditDriver
 
     /**
      * Find an audit record by its ID (not supported by log driver).
+     *
+     * @param  int|string  $id  The audit record identifier.
+     * @return Audit|null Always returns null as log driver does not support lookups.
      */
     public function find(int|string $id): ?Audit
     {

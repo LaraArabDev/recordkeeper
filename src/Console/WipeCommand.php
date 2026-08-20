@@ -32,6 +32,9 @@ class WipeCommand extends Command
 
     /**
      * Count matching audits, confirm with the user, then delete in chunks.
+     *
+     * @param  WipeAudits  $wiper  The wipe audits action.
+     * @return int The command exit code.
      */
     public function handle(WipeAudits $wiper): int
     {

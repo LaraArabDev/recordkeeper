@@ -13,6 +13,12 @@ use OwenIt\Auditing\Contracts\AttributeRedactor;
  */
 final class RedactAttribute implements AttributeRedactor
 {
+    /**
+     * Replace the given value with the configured privacy mask.
+     *
+     * @param  mixed  $value  The original attribute value.
+     * @return string The redacted mask string.
+     */
     public static function redact(mixed $value): string
     {
         return (string) config('recordkeeper.privacy.mask', '***');

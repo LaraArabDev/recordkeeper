@@ -17,11 +17,24 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class GlobalAuditRoute extends BaseAuditMiddleware
 {
+    /**
+     * Get the authentication guard name for global web route auditing.
+     *
+     * @return string The guard name.
+     */
     protected function guard(): string
     {
         return 'web';
     }
 
+    /**
+     * Handle the incoming request, skipping if excluded or already audited.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @param  Closure  $next  The next middleware closure.
+     * @param  string  ...$options  Middleware parameter strings.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, Closure $next, string ...$options): Response
     {
         if (! config('recordkeeper.routes.web', true)) {

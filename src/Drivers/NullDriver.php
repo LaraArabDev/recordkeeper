@@ -17,6 +17,9 @@ final class NullDriver implements AuditDriver
 {
     /**
      * Create an in-memory audit without persisting.
+     *
+     * @param  AuditPayload  $payload  The audit data to use.
+     * @return Audit The in-memory audit model instance (not persisted).
      */
     public function persist(AuditPayload $payload): Audit
     {
@@ -28,6 +31,9 @@ final class NullDriver implements AuditDriver
 
     /**
      * Find an audit record by its ID (always returns null).
+     *
+     * @param  int|string  $id  The audit record identifier.
+     * @return Audit|null Always returns null.
      */
     public function find(int|string $id): ?Audit
     {

@@ -26,6 +26,9 @@ parameters:
         -
             identifier: larastan.relationExistence
             reportUnmatched: false
+        # Trait methods called on base Model (disableAuditing, enableAuditing, restore)
+        -
+            identifier: method.notFound
         # Trait declared but used via parent (AuditsChanges)
         -
             identifier: trait.unused

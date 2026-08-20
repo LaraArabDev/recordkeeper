@@ -302,6 +302,7 @@ final class ProcessRollbackJobTest extends TestCase
         $this->artisan('recordkeeper:rollback', [
             '--batch' => 'cli-batch',
             '--async' => true,
+            '--yes' => true,
         ])->assertSuccessful()
             ->expectsOutputToContain('Rollback job dispatched to queue.');
 

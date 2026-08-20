@@ -34,7 +34,12 @@ final class RecordCommandAudit
 
     public function __construct(private readonly RecordAudit $recordAudit) {}
 
-    /** @return array<string, string> */
+    /**
+     * Register event listeners for Artisan command lifecycle events.
+     *
+     * @param  Dispatcher  $events  The event dispatcher instance.
+     * @return array<string, string>
+     */
     public function subscribe(Dispatcher $events): array
     {
         return [
@@ -45,6 +50,8 @@ final class RecordCommandAudit
 
     /**
      * Capture the start time and baseline audit ID for a command.
+     *
+     * @param  CommandStarting  $event  The command starting event instance.
      */
     public function onStarting(CommandStarting $event): void
     {
@@ -66,6 +73,8 @@ final class RecordCommandAudit
 
     /**
      * Record an audit when a command finishes, with metrics and optional anomaly detection.
+     *
+     * @param  CommandFinished  $event  The command finished event instance.
      */
     public function onFinished(CommandFinished $event): void
     {
@@ -128,6 +137,8 @@ final class RecordCommandAudit
 
     /**
      * Determine whether the given command should be audited.
+     *
+     * @param  string|null  $command  The Artisan command name, or null if unavailable.
      */
     private function shouldAudit(?string $command): bool
     {
@@ -156,6 +167,9 @@ final class RecordCommandAudit
     /**
      * Compare current run metrics against historical averages to detect anomalies.
      *
+     * @param  string  $commandName  The Artisan command name to check history for.
+     * @param  int  $duration  The current run duration in milliseconds.
+     * @param  int|null  $auditCount  The number of audits created during this run, if tracked.
      * @return array{anomaly: true, anomaly_reason: string}|null
      */
     private function detectAnomaly(string $commandName, int $duration, ?int $auditCount): ?array
@@ -200,6 +214,7 @@ final class RecordCommandAudit
     /**
      * Resolve the command class name from an Artisan command name.
      *
+     * @param  string  $commandName  The Artisan command name (e.g. 'migrate').
      * @return class-string|null
      */
     private function resolveCommandClass(string $commandName): ?string
@@ -226,6 +241,8 @@ final class RecordCommandAudit
      *
      * Priority: attribute > trait > empty.
      *
+     * @param  class-string|null  $commandClass  The fully qualified command class name, or null.
+     * @param  AuditCommand|null  $attr  The resolved AuditCommand attribute, if present.
      * @return list<string>
      */
     private function resolveTags(?string $commandClass, ?AuditCommand $attr): array
@@ -246,7 +263,7 @@ final class RecordCommandAudit
     /**
      * Check whether the given class uses the AuditsCommand trait.
      *
-     * @param  class-string  $commandClass
+     * @param  class-string  $commandClass  The fully qualified command class name.
      */
     private function usesTrait(string $commandClass): bool
     {
@@ -260,7 +277,7 @@ final class RecordCommandAudit
     /**
      * Retrieve the #[AuditCommand] attribute instance from a command class, if present.
      *
-     * @param  class-string  $commandClass
+     * @param  class-string  $commandClass  The fully qualified command class name.
      */
     private function attribute(string $commandClass): ?AuditCommand
     {

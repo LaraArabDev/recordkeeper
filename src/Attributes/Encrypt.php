@@ -17,6 +17,11 @@ final class Encrypt
 {
     public readonly array $attributes;
 
+    /**
+     * Create a new Encrypt attribute instance.
+     *
+     * @param  string  ...$attributes  The model attribute names to encrypt.
+     */
     public function __construct(string ...$attributes)
     {
         $this->attributes = $attributes;

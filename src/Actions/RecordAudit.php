@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Actions;
 
 use LaraArabDev\Recordkeeper\DataObjects\AuditPayload;
+use LaraArabDev\Recordkeeper\Events\ChangeRecorded;
 use LaraArabDev\Recordkeeper\Jobs\WriteAudit;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\AuditDriverManager;
@@ -22,6 +23,9 @@ final class RecordAudit
 
     /**
      * Persist an audit payload synchronously or dispatch to queue.
+     *
+     * @param  AuditPayload  $payload  The audit data to persist.
+     * @return Audit The persisted (or queue-pending) Audit model instance.
      */
     public function __invoke(AuditPayload $payload): Audit
     {
@@ -29,11 +33,18 @@ final class RecordAudit
             return $this->dispatchAsync($payload);
         }
 
-        return $this->manager->driver()->persist($payload);
+        $audit = $this->manager->driver()->persist($payload);
+
+        ChangeRecorded::dispatch($audit);
+
+        return $audit;
     }
 
     /**
      * Dispatch the audit write to a background queue job.
+     *
+     * @param  AuditPayload  $payload  The audit data to dispatch.
+     * @return Audit A non-persisted Audit instance filled with the payload data.
      */
     private function dispatchAsync(AuditPayload $payload): Audit
     {

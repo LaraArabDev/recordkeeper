@@ -16,6 +16,11 @@ final class Redact
 {
     public readonly array $attributes;
 
+    /**
+     * Create a new Redact attribute instance.
+     *
+     * @param  string  ...$attributes  The model attribute names to redact.
+     */
     public function __construct(string ...$attributes)
     {
         $this->attributes = $attributes;

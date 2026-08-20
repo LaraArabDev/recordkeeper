@@ -17,8 +17,8 @@ final class TerminalRenderer
     /**
      * Render a formatted ASCII table to stdout.
      *
-     * @param  list<string>  $headers
-     * @param  list<array<string, scalar>>  $rows
+     * @param  list<string>  $headers  Column header labels.
+     * @param  list<array<string, scalar>>  $rows  Row data arrays keyed by column.
      */
     public static function table(array $headers, array $rows): void
     {
@@ -55,7 +55,11 @@ final class TerminalRenderer
         echo $line."\n";
     }
 
-    /** Render a color-coded before/after diff of the audit's modified attributes. */
+    /**
+     * Render a color-coded before/after diff of the audit's modified attributes.
+     *
+     * @param  Audit  $audit  The audit record whose modifications to display.
+     */
     public static function diff(Audit $audit): void
     {
         $modified = $audit->getModified();
@@ -77,13 +81,19 @@ final class TerminalRenderer
 
     /**
      * Output data as pretty-printed JSON.
+     *
+     * @param  mixed  $data  The data to encode and output as JSON.
      */
     public static function json(mixed $data): void
     {
         echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)."\n";
     }
 
-    /** @param  list<array<string, mixed>>  $rows */
+    /**
+     * Output data as newline-delimited JSON (NDJSON).
+     *
+     * @param  list<array<string, mixed>>  $rows  The rows to output, one JSON object per line.
+     */
     public static function ndjson(array $rows): void
     {
         foreach ($rows as $row) {
@@ -94,8 +104,8 @@ final class TerminalRenderer
     /**
      * Write CSV-formatted output to stdout.
      *
-     * @param  list<string>  $headers
-     * @param  list<array<string, scalar>>  $rows
+     * @param  list<string>  $headers  Column header labels for the first CSV row.
+     * @param  list<array<string, scalar>>  $rows  Data rows to write after the header.
      */
     public static function csv(array $headers, array $rows): void
     {
@@ -110,7 +120,7 @@ final class TerminalRenderer
     /**
      * Map a collection of audits to row arrays.
      *
-     * @param  Collection<int, Audit>  $audits
+     * @param  Collection<int, Audit>  $audits  The audits to map.
      * @return list<array{id: int, event: string, subject: string, actor: string, changed: string, batch: string, created: string}>
      */
     public static function mapToRows(Collection $audits): array
@@ -118,7 +128,12 @@ final class TerminalRenderer
         return $audits->map(fn (Audit $a) => self::auditToRow($a))->all();
     }
 
-    /** @return array{id: int, event: string, subject: string, actor: string, changed: string, batch: string, created: string} */
+    /**
+     * Convert a single audit record into a display row array.
+     *
+     * @param  Audit  $audit  The audit record to convert.
+     * @return array{id: int, event: string, subject: string, actor: string, changed: string, batch: string, created: string}
+     */
     public static function auditToRow(Audit $audit): array
     {
         return [
@@ -134,6 +149,12 @@ final class TerminalRenderer
         ];
     }
 
+    /**
+     * Format a value for display in a diff output.
+     *
+     * @param  mixed  $value  The value to format.
+     * @return string The human-readable string representation.
+     */
     private static function formatValue(mixed $value): string
     {
         if ($value === null) {

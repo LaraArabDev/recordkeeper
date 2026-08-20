@@ -36,7 +36,9 @@ trait AuditsChanges
     /** @var array<string, mixed> */
     protected array $pendingAuditContext = [];
 
-    /** Bootstrap audit configuration from PHP 8 attributes and global config. */
+    /**
+     * Bootstrap audit configuration from PHP 8 attributes and global config.
+     */
     public function initializeAuditsChanges(): void
     {
         $resolved = AttributeResolver::resolve($this);
@@ -49,7 +51,11 @@ trait AuditsChanges
         $this->resolvedAuditTags = $resolved->auditTags;
     }
 
-    /** @return list<string> */
+    /**
+     * Merge model-level tags with ambient tags from the Recordkeeper service.
+     *
+     * @return list<string>
+     */
     public function generateTags(): array
     {
         return array_merge(
@@ -66,42 +72,58 @@ trait AuditsChanges
      */
     public function transformAudit(array $data): array
     {
+        $recorder = app(Recordkeeper::class);
+
         $data['tags'] = implode(',', $this->generateTags());
+        $data = $this->redactSensitiveValues($data);
+        $data = $recorder->decorate($data);
 
-        $privacyMode = config('recordkeeper.privacy.mode', 'redact');
+        if (! empty($this->pendingAuditContext)) {
+            $data['context'] = array_merge(
+                $recorder->normalizeContext($data['context'] ?? []),
+                $this->pendingAuditContext,
+            );
+            $this->pendingAuditContext = [];
+        }
 
-        if ($privacyMode !== 'off') {
-            $patterns = config('recordkeeper.privacy.sensitive_patterns', []);
+        return $data;
+    }
 
-            if (! empty($patterns)) {
-                foreach (['new_values', 'old_values'] as $key) {
-                    if (! is_array($data[$key] ?? null)) {
-                        continue;
-                    }
-                    foreach ($data[$key] as $attr => $value) {
-                        if (isset($this->attributeModifiers[$attr])) {
-                            continue;
-                        }
-                        foreach ($patterns as $pattern) {
-                            if (str_contains(strtolower((string) $attr), strtolower($pattern))) {
-                                $data[$key][$attr] = config('recordkeeper.privacy.mask', '***');
-                                break;
-                            }
-                        }
+    /**
+     * Redact values matching configured sensitive patterns.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function redactSensitiveValues(array $data): array
+    {
+        if (config('recordkeeper.privacy.mode', 'redact') === 'off') {
+            return $data;
+        }
+
+        $patterns = config('recordkeeper.privacy.sensitive_patterns', []);
+
+        if (empty($patterns)) {
+            return $data;
+        }
+
+        $mask = config('recordkeeper.privacy.mask', '***');
+
+        foreach (['new_values', 'old_values'] as $key) {
+            if (! is_array($data[$key] ?? null)) {
+                continue;
+            }
+            foreach ($data[$key] as $attr => $value) {
+                if (isset($this->attributeModifiers[$attr])) {
+                    continue;
+                }
+                foreach ($patterns as $pattern) {
+                    if (str_contains(strtolower((string) $attr), strtolower($pattern))) {
+                        $data[$key][$attr] = $mask;
+                        break;
                     }
                 }
             }
-        }
-
-        $data = app(Recordkeeper::class)->decorate($data);
-
-        if (! empty($this->pendingAuditContext)) {
-            $existing = $data['context'] ?? [];
-            if (is_string($existing)) {
-                $existing = json_decode($existing, true) ?? [];
-            }
-            $data['context'] = array_merge((array) $existing, $this->pendingAuditContext);
-            $this->pendingAuditContext = [];
         }
 
         return $data;
@@ -110,7 +132,7 @@ trait AuditsChanges
     /**
      * Push additional context to be included in the next audit for this model.
      *
-     * @param  array<string, mixed>  $context
+     * @param  array<string, mixed>  $context  The key-value pairs to merge into the audit context.
      */
     public function auditContext(array $context): static
     {

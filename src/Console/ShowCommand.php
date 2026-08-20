@@ -17,6 +17,11 @@ class ShowCommand extends Command
 
     protected $description = 'Show a single audit record with before/after diff';
 
+    /**
+     * Look up the audit by ID and render its detail or JSON representation.
+     *
+     * @return int The command exit code.
+     */
     public function handle(): int
     {
         $id = $this->argument('id');
@@ -39,6 +44,11 @@ class ShowCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Render audit metadata, changes diff, and context to the terminal.
+     *
+     * @param  Audit  $audit  The audit record to render.
+     */
     private function renderDetail(Audit $audit): void
     {
         $this->newLine();

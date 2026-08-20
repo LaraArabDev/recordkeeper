@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\Queue;
 use LaraArabDev\Recordkeeper\Actions\DiscoverAuditableModels;
 use LaraArabDev\Recordkeeper\Actions\ExportAudits;
 use LaraArabDev\Recordkeeper\Actions\GatherAuditStats;
-use LaraArabDev\Recordkeeper\Actions\RestoreModel;
-use LaraArabDev\Recordkeeper\Actions\RollbackAudits;
-use LaraArabDev\Recordkeeper\Actions\UndoChanges;
 use LaraArabDev\Recordkeeper\Actions\WipeAudits;
 use LaraArabDev\Recordkeeper\Facades\Recordkeeper;
 use LaraArabDev\Recordkeeper\Jobs\ProcessRollback;
@@ -18,6 +15,7 @@ use LaraArabDev\Recordkeeper\Jobs\ProcessRollbackCollection;
 use LaraArabDev\Recordkeeper\Models\Audit;
 use LaraArabDev\Recordkeeper\Support\AttributeResolver;
 use LaraArabDev\Recordkeeper\Support\AuditQuery;
+use LaraArabDev\Recordkeeper\Support\Rollback;
 use LaraArabDev\Recordkeeper\Tests\Fixtures\Order;
 use LaraArabDev\Recordkeeper\Tests\TestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -28,10 +26,8 @@ use PHPUnit\Framework\Attributes\Test;
 #[CoversClass(GatherAuditStats::class)]
 #[CoversClass(ExportAudits::class)]
 #[CoversClass(WipeAudits::class)]
-#[CoversClass(RestoreModel::class)]
 #[CoversClass(DiscoverAuditableModels::class)]
-#[CoversClass(RollbackAudits::class)]
-#[CoversClass(UndoChanges::class)]
+#[CoversClass(Rollback::class)]
 class AdditionalActionsTest extends TestCase
 {
     protected function setUp(): void
@@ -370,7 +366,7 @@ class AdditionalActionsTest extends TestCase
     }
 
     // ====================================================================
-    // RestoreModel
+    // Restore (via AuditQuery)
     // ====================================================================
 
     #[Test]
@@ -379,7 +375,8 @@ class AdditionalActionsTest extends TestCase
         $order = Order::create(['status' => 'pending']);
         $order->delete();
 
-        $audit = app(RestoreModel::class)->findDeletionAudit(Order::class, (string) $order->id);
+        $audit = (new AuditQuery)->model(Order::class)->subjectId((string) $order->id)
+            ->event(['deleted', 'forceDeleted'])->latest()->limit(1)->builder()->first();
 
         $this->assertNotNull($audit);
         $this->assertSame('deleted', $audit->event);
@@ -390,7 +387,8 @@ class AdditionalActionsTest extends TestCase
     {
         $order = Order::create(['status' => 'pending']);
 
-        $audit = app(RestoreModel::class)->findDeletionAudit(Order::class, (string) $order->id);
+        $audit = (new AuditQuery)->model(Order::class)->subjectId((string) $order->id)
+            ->event(['deleted', 'forceDeleted'])->latest()->limit(1)->builder()->first();
 
         $this->assertNull($audit);
     }
@@ -398,7 +396,8 @@ class AdditionalActionsTest extends TestCase
     #[Test]
     public function find_deletion_audit_returns_null_for_nonexistent_model(): void
     {
-        $audit = app(RestoreModel::class)->findDeletionAudit(Order::class, '99999');
+        $audit = (new AuditQuery)->model(Order::class)->subjectId('99999')
+            ->event(['deleted', 'forceDeleted'])->latest()->limit(1)->builder()->first();
 
         $this->assertNull($audit);
     }
@@ -414,7 +413,8 @@ class AdditionalActionsTest extends TestCase
         $audits = Audit::where('event', 'deleted')->get();
         $this->assertGreaterThanOrEqual(2, $audits->count());
 
-        $result = app(RestoreModel::class)->findDeletionAudit(Order::class, (string) $order->id);
+        $result = (new AuditQuery)->model(Order::class)->subjectId((string) $order->id)
+            ->event(['deleted', 'forceDeleted'])->latest()->limit(1)->builder()->first();
 
         $this->assertNotNull($result);
         // Should be the most recent deletion
@@ -498,7 +498,7 @@ class AdditionalActionsTest extends TestCase
     }
 
     // ====================================================================
-    // RollbackAudits — async methods
+    // Rollback — async methods
     // ====================================================================
 
     #[Test]
@@ -510,7 +510,7 @@ class AdditionalActionsTest extends TestCase
         $order->update(['status' => 'shipped']);
 
         $audit = Audit::where('event', 'updated')->first();
-        app(RollbackAudits::class)->revertAsync($audit);
+        app(Rollback::class)->revertAsync($audit);
 
         Queue::assertPushed(ProcessRollback::class);
     }
@@ -525,7 +525,7 @@ class AdditionalActionsTest extends TestCase
         $order->update(['status' => 'shipped']);
 
         $audits = Audit::where('event', 'updated')->get();
-        app(RollbackAudits::class)->revertCollectionAsync($audits);
+        app(Rollback::class)->revertCollectionAsync($audits);
 
         Queue::assertPushed(ProcessRollbackCollection::class);
     }
@@ -546,7 +546,9 @@ class AdditionalActionsTest extends TestCase
             'batch_id' => 'mixed-batch',
         ]);
 
-        $audits = app(RollbackAudits::class)->findByBatch('mixed-batch');
+        $audits = Audit::where('batch_id', 'mixed-batch')
+            ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
+            ->get();
 
         // Only rollbackable events (created/updated/deleted/restored)
         foreach ($audits as $audit) {
@@ -555,7 +557,7 @@ class AdditionalActionsTest extends TestCase
     }
 
     // ====================================================================
-    // UndoChanges — async and edge cases
+    // Undo — async and edge cases
     // ====================================================================
 
     #[Test]
@@ -566,8 +568,8 @@ class AdditionalActionsTest extends TestCase
         $order = Order::create(['status' => 'pending']);
         $order->update(['status' => 'shipped']);
 
-        $audits = app(UndoChanges::class)->findUndoable(1);
-        app(UndoChanges::class)->revertAsync($audits);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(1)->builder()->get();
+        app(Rollback::class)->revertCollectionAsync($audits);
 
         Queue::assertPushed(ProcessRollbackCollection::class);
     }
@@ -579,7 +581,7 @@ class AdditionalActionsTest extends TestCase
         Order::create(['status' => 'b']);
         Order::create(['status' => 'c']);
 
-        $audits = app(UndoChanges::class)->findUndoable(2);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(2)->builder()->get();
 
         $this->assertCount(2, $audits);
     }
@@ -597,7 +599,7 @@ class AdditionalActionsTest extends TestCase
             'new_values' => [],
         ]);
 
-        $audits = app(UndoChanges::class)->findUndoable(10, 'Order');
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(10)->model('Order')->builder()->get();
 
         foreach ($audits as $audit) {
             $this->assertStringContainsString('Order', $audit->auditable_type);
@@ -616,7 +618,7 @@ class AdditionalActionsTest extends TestCase
             'new_values' => [],
         ]);
 
-        $audits = app(UndoChanges::class)->findUndoable(10);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(10)->builder()->get();
 
         foreach ($audits as $audit) {
             $this->assertContains($audit->event, ['created', 'updated', 'deleted', 'restored']);

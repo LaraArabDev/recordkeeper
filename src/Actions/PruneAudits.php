@@ -14,7 +14,13 @@ use LaraArabDev\Recordkeeper\Models\Audit;
  */
 final class PruneAudits
 {
-    /** @return int Number of deleted (or deletable, if dry-run) audit records. */
+    /**
+     * Delete audit records older than the specified number of days.
+     *
+     * @param  int  $days  The age threshold in days; records older than this are pruned.
+     * @param  bool  $dryRun  When true, returns the count without actually deleting.
+     * @return int Number of deleted (or deletable, if dry-run) audit records.
+     */
     public function __invoke(int $days, bool $dryRun = false): int
     {
         $cutoff = Carbon::now()->subDays($days);

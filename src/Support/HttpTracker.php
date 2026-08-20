@@ -44,6 +44,8 @@ final class HttpTracker
 
     /**
      * Get the current parent audit ID, if set.
+     *
+     * @return int|null The parent audit ID, or null if no context is active.
      */
     public function currentAuditId(): ?int
     {
@@ -52,6 +54,8 @@ final class HttpTracker
 
     /**
      * Get the current per-class HTTP filter config, if set.
+     *
+     * @return HttpFilterConfig|null The active filter config, or null if none is set.
      */
     public function currentFilterConfig(): ?HttpFilterConfig
     {
@@ -60,6 +64,8 @@ final class HttpTracker
 
     /**
      * Whether a parent context (audit ID) has been set.
+     *
+     * @return bool True if a parent audit context is currently active.
      */
     public function hasActiveContext(): bool
     {

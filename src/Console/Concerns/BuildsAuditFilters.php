@@ -19,6 +19,8 @@ trait BuildsAuditFilters
      *
      * Supports: --model, --model-id, --tag, --event, --since, --until, --batch, --user, --guard, --q.
      * Options not defined on the command are safely skipped via hasOption() guards.
+     *
+     * @return AuditQuery The configured audit query builder.
      */
     protected function buildAuditQuery(): AuditQuery
     {
@@ -72,6 +74,8 @@ trait BuildsAuditFilters
 
     /**
      * Determine whether at least one filter option was provided.
+     *
+     * @return bool True if any filter option has a non-empty value.
      */
     protected function hasAnyFilter(): bool
     {

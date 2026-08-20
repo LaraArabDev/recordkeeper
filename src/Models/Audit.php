@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use LaraArabDev\Recordkeeper\Support\Rollback;
@@ -61,16 +60,21 @@ class Audit extends BaseAudit
     /** @var list<string> Pseudo-types that are not real Eloquent models. */
     public const PSEUDO_TYPES = ['route', 'system', 'job', 'command', 'event'];
 
-    /** @return MorphTo<Model, $this> */
+    /**
+     * Get the auditable model that this audit belongs to.
+     *
+     * @return MorphTo<Model, $this>
+     */
     public function auditable(): MorphTo
     {
         return $this->morphTo();
     }
 
+    /**
+     * Sync tags from the comma-separated `tags` column into the pivot table on creation.
+     */
     protected static function booted(): void
     {
-        Relation::morphMap(array_fill_keys(self::PSEUDO_TYPES, static::class));
-
         static::created(function (Audit $audit): void {
             if (! empty($audit->tags)) {
                 $tags = array_filter(explode(',', $audit->tags));
@@ -89,12 +93,13 @@ class Audit extends BaseAudit
     ];
 
     /** @var list<string> */
-    protected $guarded = [];
+    protected $guarded = ['id'];
 
     /**
      * Scope audits to a specific authentication guard.
      *
      * @param  Builder<static>  $query
+     * @param  string  $guard  The authentication guard name.
      * @return Builder<static>
      */
     public function scopeForGuard(Builder $query, string $guard): Builder
@@ -119,9 +124,10 @@ class Audit extends BaseAudit
     }
 
     /**
-     * Scope audits to a specific model instance (type + ID).
+     * Scope audits to a specific auditable subject (model instance).
      *
      * @param  Builder<static>  $query
+     * @param  Model  $subject  The auditable model instance to filter by.
      * @return Builder<static>
      */
     public function scopeForSubject(Builder $query, Model $subject): Builder
@@ -169,11 +175,7 @@ class Audit extends BaseAudit
         $query->where('user_id', $actor);
 
         if ($userType !== null) {
-            if (str_contains($userType, '\\')) {
-                $query->where('user_type', $userType);
-            } else {
-                $query->where('user_type', 'like', '%\\'.$userType);
-            }
+            $query->forActorType($userType);
         }
 
         return $query;
@@ -183,6 +185,7 @@ class Audit extends BaseAudit
      * Scope audits to a specific batch ID.
      *
      * @param  Builder<static>  $query
+     * @param  string  $batchId  The batch identifier to filter by.
      * @return Builder<static>
      */
     public function scopeForBatch(Builder $query, string $batchId): Builder
@@ -246,6 +249,8 @@ class Audit extends BaseAudit
     }
 
     /**
+     * Get the tags associated with this audit via the pivot table.
+     *
      * @return HasMany<AuditTag, $this>
      */
     public function auditTags(): HasMany
@@ -254,7 +259,10 @@ class Audit extends BaseAudit
     }
 
     /**
+     * Scope audits to those having a specific tag via the pivot table.
+     *
      * @param  Builder<static>  $query
+     * @param  string  $tag  The tag value to filter by.
      * @return Builder<static>
      */
     public function scopeForTag(Builder $query, string $tag): Builder
@@ -263,7 +271,10 @@ class Audit extends BaseAudit
     }
 
     /**
+     * Scope audits by source identifier (FQCN, route, or command name).
+     *
      * @param  Builder<static>  $query
+     * @param  string  $source  The source identifier to filter by.
      * @return Builder<static>
      */
     public function scopeForSource(Builder $query, string $source): Builder
@@ -291,6 +302,9 @@ class Audit extends BaseAudit
 
     /**
      * Override to force-delete pruned audits instead of soft-deleting.
+     *
+     * @param  int  $chunkSize  The number of records to delete per iteration.
+     * @return int The total number of pruned records.
      */
     public function pruneAll(int $chunkSize = 1000): int
     {
@@ -328,7 +342,9 @@ class Audit extends BaseAudit
         return $this->hasMany(AuditHttpRequest::class);
     }
 
-    /** Determine whether this audit's event type supports rollback. */
+    /**
+     * Determine whether this audit's event type supports rollback.
+     */
     public function isRollbackable(): bool
     {
         return in_array($this->event, self::ROLLBACKABLE_EVENTS, true);

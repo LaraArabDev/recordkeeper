@@ -56,6 +56,7 @@ abstract class BenchCase
                 'guard' => null,
                 'batch_id' => null,
                 'context' => null,
+                'source' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ], $overrides);

@@ -35,7 +35,8 @@ final readonly class AuditPayload
     /**
      * Reconstruct a payload from its snake_case array representation.
      *
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $data  The snake_case keyed array of audit data.
+     * @return self The reconstructed AuditPayload instance.
      */
     public static function fromArray(array $data): self
     {
@@ -58,7 +59,11 @@ final readonly class AuditPayload
         );
     }
 
-    /** @return array{event: string, auditable_type: string, auditable_id: int|string|null, old_values: array<string, mixed>, new_values: array<string, mixed>, user_type: ?string, user_id: int|string|null, url: ?string, ip_address: ?string, user_agent: ?string, tags: ?string, batch_id: ?string, context: array<string, mixed>, guard: ?string, source: ?string} */
+    /**
+     * Convert the payload to its snake_case array representation.
+     *
+     * @return array{event: string, auditable_type: string, auditable_id: int|string|null, old_values: array<string, mixed>, new_values: array<string, mixed>, user_type: ?string, user_id: int|string|null, url: ?string, ip_address: ?string, user_agent: ?string, tags: ?string, batch_id: ?string, context: array<string, mixed>, guard: ?string, source: ?string}
+     */
     public function toArray(): array
     {
         return [

@@ -18,6 +18,9 @@ class SyncCommand extends Command
 
     /**
      * Discover auditable models and display their resolved configuration.
+     *
+     * @param  DiscoverAuditableModels  $discover  The model discovery action.
+     * @return int The command exit code.
      */
     public function handle(DiscoverAuditableModels $discover): int
     {

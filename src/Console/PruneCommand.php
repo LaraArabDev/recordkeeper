@@ -24,6 +24,9 @@ class PruneCommand extends Command
 
     /**
      * Delete audit records older than the configured retention period.
+     *
+     * @param  PruneAudits  $pruner  The prune audits action.
+     * @return int The command exit code.
      */
     public function handle(PruneAudits $pruner): int
     {

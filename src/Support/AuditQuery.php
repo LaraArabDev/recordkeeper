@@ -21,20 +21,22 @@ final class AuditQuery
         $this->query = Audit::query()->with(['auditable']);
     }
 
-    /** Filter by auditable model class (FQCN or short basename). */
+    /**
+     * Filter by auditable model class (FQCN or short basename).
+     *
+     * @param  string  $type  The fully-qualified class name or short basename to filter by.
+     */
     public function model(string $type): static
     {
-        if (! str_contains($type, '\\')) {
-            $this->query->where('auditable_type', 'like', '%\\'.$type);
-        } else {
-            $this->query->where('auditable_type', $type);
-        }
+        $this->whereClassOrBasename('auditable_type', $type);
 
         return $this;
     }
 
     /**
      * Filter by auditable subject ID.
+     *
+     * @param  int|string  $id  The auditable model's primary key value.
      */
     public function subjectId(int|string $id): static
     {
@@ -46,7 +48,7 @@ final class AuditQuery
     /**
      * Filter by one or more event names.
      *
-     * @param  string|array<string>  $event
+     * @param  string|array<string>  $event  A single event name or array of event names.
      */
     public function event(string|array $event): static
     {
@@ -60,24 +62,23 @@ final class AuditQuery
      */
     public function rollbackable(): static
     {
-        $this->query->whereIn('event', ['created', 'updated', 'deleted', 'restored']);
+        $this->query->whereIn('event', Audit::ROLLBACKABLE_EVENTS);
 
         return $this;
     }
 
     /**
      * Filter by actor (user) ID and optional type.
+     *
+     * @param  int|string  $userId  The user ID to filter by.
+     * @param  string|null  $userType  Optional FQCN or short basename of the user model type.
      */
     public function actor(int|string $userId, ?string $userType = null): static
     {
         $this->query->where('user_id', $userId);
 
         if ($userType !== null) {
-            if (! str_contains($userType, '\\')) {
-                $this->query->where('user_type', 'like', '%\\'.$userType);
-            } else {
-                $this->query->where('user_type', $userType);
-            }
+            $this->actorType($userType);
         }
 
         return $this;
@@ -85,14 +86,12 @@ final class AuditQuery
 
     /**
      * Filter by actor type (FQCN or short basename).
+     *
+     * @param  string  $userType  The fully-qualified class name or short basename of the user type.
      */
     public function actorType(string $userType): static
     {
-        if (! str_contains($userType, '\\')) {
-            $this->query->where('user_type', 'like', '%\\'.$userType);
-        } else {
-            $this->query->where('user_type', $userType);
-        }
+        $this->whereClassOrBasename('user_type', $userType);
 
         return $this;
     }
@@ -109,6 +108,8 @@ final class AuditQuery
 
     /**
      * Filter by authentication guard name.
+     *
+     * @param  string  $guard  The guard name to filter by.
      */
     public function guard(string $guard): static
     {
@@ -120,7 +121,7 @@ final class AuditQuery
     /**
      * Filter by one or more tags (exact match via pivot table).
      *
-     * @param  string|array<string>  $tags
+     * @param  string|array<string>  $tags  A single tag or array of tags to filter by.
      */
     public function tag(string|array $tags): static
     {
@@ -133,6 +134,8 @@ final class AuditQuery
 
     /**
      * Filter by source (FQCN, command name, route name, or path).
+     *
+     * @param  string  $source  The source identifier to filter by.
      */
     public function source(string $source): static
     {
@@ -143,6 +146,8 @@ final class AuditQuery
 
     /**
      * Filter by batch ID.
+     *
+     * @param  string  $batchId  The batch identifier to filter by.
      */
     public function batch(string $batchId): static
     {
@@ -153,6 +158,9 @@ final class AuditQuery
 
     /**
      * Filter audits created between two dates.
+     *
+     * @param  \DateTimeInterface|string  $from  The start date (inclusive).
+     * @param  \DateTimeInterface|string  $until  The end date (inclusive).
      */
     public function between(\DateTimeInterface|string $from, \DateTimeInterface|string $until): static
     {
@@ -163,6 +171,8 @@ final class AuditQuery
 
     /**
      * Filter audits created since a given date.
+     *
+     * @param  \DateTimeInterface|string  $from  The start date (inclusive).
      */
     public function since(\DateTimeInterface|string $from): static
     {
@@ -173,6 +183,8 @@ final class AuditQuery
 
     /**
      * Filter audits created before a given date.
+     *
+     * @param  \DateTimeInterface|string  $until  The end date (inclusive).
      */
     public function until(\DateTimeInterface|string $until): static
     {
@@ -181,14 +193,17 @@ final class AuditQuery
         return $this;
     }
 
-    /** Free-text search across event, auditable_type, batch_id, and user_id. */
+    /**
+     * Free-text search across event, auditable_type, and batch_id.
+     *
+     * @param  string  $term  The search term to match against multiple columns.
+     */
     public function search(string $term): static
     {
         $this->query->where(function (Builder $q) use ($term): void {
             $q->where('event', 'like', '%'.$term.'%')
                 ->orWhere('auditable_type', 'like', '%'.$term.'%')
-                ->orWhere('batch_id', 'like', '%'.$term.'%')
-                ->orWhere('user_id', 'like', '%'.$term.'%');
+                ->orWhere('batch_id', 'like', '%'.$term.'%');
         });
 
         return $this;
@@ -206,6 +221,8 @@ final class AuditQuery
 
     /**
      * Limit the number of results returned.
+     *
+     * @param  int  $limit  Maximum number of results to return.
      */
     public function limit(int $limit): static
     {
@@ -216,6 +233,8 @@ final class AuditQuery
 
     /**
      * Skip a number of results before returning.
+     *
+     * @param  int  $offset  Number of results to skip.
      */
     public function offset(int $offset): static
     {
@@ -226,6 +245,9 @@ final class AuditQuery
 
     /**
      * Paginate results by limit and page number.
+     *
+     * @param  int  $limit  Number of results per page.
+     * @param  int  $page  The page number (1-based).
      */
     public function paginate(int $limit, int $page): static
     {
@@ -262,9 +284,26 @@ final class AuditQuery
         return $this;
     }
 
-    /** @return Builder<Audit> */
+    /**
+     * Get the underlying Eloquent query builder.
+     *
+     * @return Builder<Audit>
+     */
     public function builder(): Builder
     {
         return $this->query;
+    }
+
+    /**
+     * Apply a where clause matching FQCN exactly or basename via LIKE.
+     *
+     * @param  string  $column  The database column to filter on.
+     * @param  string  $value  The FQCN (exact match) or short basename (LIKE suffix match).
+     */
+    private function whereClassOrBasename(string $column, string $value): void
+    {
+        str_contains($value, '\\')
+            ? $this->query->where($column, $value)
+            : $this->query->where($column, 'like', '%\\'.$value);
     }
 }

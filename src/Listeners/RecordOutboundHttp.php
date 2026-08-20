@@ -22,7 +22,12 @@ final class RecordOutboundHttp
 {
     public function __construct(private readonly HttpTracker $tracker) {}
 
-    /** @return array<string, string> */
+    /**
+     * Register event listeners for HTTP client lifecycle events.
+     *
+     * @param  Dispatcher  $events  The event dispatcher instance.
+     * @return array<string, string>
+     */
     public function subscribe(Dispatcher $events): array
     {
         return [
@@ -34,6 +39,8 @@ final class RecordOutboundHttp
 
     /**
      * Record the start time of an outbound HTTP request.
+     *
+     * @param  RequestSending  $event  The request sending event instance.
      */
     public function onSending(RequestSending $event): void
     {
@@ -46,6 +53,8 @@ final class RecordOutboundHttp
 
     /**
      * Record a completed outbound HTTP request with response details.
+     *
+     * @param  ResponseReceived  $event  The response received event instance.
      */
     public function onReceived(ResponseReceived $event): void
     {
@@ -82,6 +91,8 @@ final class RecordOutboundHttp
 
     /**
      * Record a failed outbound HTTP connection attempt.
+     *
+     * @param  ConnectionFailed  $event  The connection failed event instance.
      */
     public function onFailed(ConnectionFailed $event): void
     {
@@ -106,7 +117,7 @@ final class RecordOutboundHttp
     /**
      * Persist the HTTP request record directly or via queue.
      *
-     * @param  array<string, mixed>  $data
+     * @param  array<string, mixed>  $data  The HTTP request data to persist.
      */
     private function persist(array $data): void
     {

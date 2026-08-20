@@ -15,11 +15,22 @@ use LaraArabDev\Recordkeeper\Resolvers\ApiActorResolver;
  */
 final class AuditApi extends BaseAuditMiddleware
 {
+    /**
+     * Get the authentication guard name for API routes.
+     *
+     * @return string The guard name.
+     */
     protected function guard(): string
     {
         return 'api';
     }
 
+    /**
+     * Resolve the authenticated actor using multi-guard resolution.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @return mixed The authenticated user, or null if unauthenticated.
+     */
     protected function resolveActor(Request $request): mixed
     {
         return ApiActorResolver::resolve();

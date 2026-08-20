@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
-use LaraArabDev\Recordkeeper\Actions\RestoreModel;
 use LaraArabDev\Recordkeeper\Console\Concerns\ConfirmsAndExecutes;
+use LaraArabDev\Recordkeeper\Support\AuditQuery;
 use LaraArabDev\Recordkeeper\Support\Rollback;
 use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 
@@ -26,12 +26,25 @@ class RestoreCommand extends Command
 
     protected $description = 'Restore a deleted model instance from its audit trail';
 
-    public function handle(RestoreModel $restorer, Rollback $rollback): int
+    /**
+     * Find the latest deletion audit for the given model and offer to restore it.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
+     * @return int The command exit code.
+     */
+    public function handle(Rollback $rollback): int
     {
         $model = (string) $this->argument('model');
         $id = (string) $this->argument('id');
 
-        $audit = $restorer->findDeletionAudit($model, $id);
+        $audit = (new AuditQuery)
+            ->model($model)
+            ->subjectId($id)
+            ->event(['deleted', 'forceDeleted'])
+            ->latest()
+            ->limit(1)
+            ->builder()
+            ->first();
 
         if ($audit === null) {
             $this->error("No deletion audit found for {$model} #{$id}.");
@@ -49,7 +62,7 @@ class RestoreCommand extends Command
             confirmMessage: "Restore {$model} #{$id}?",
             dryRunMessage: 'Dry-run — no changes applied.',
             onSync: function () use ($rollback, $audit, $model, $id): int {
-                $rollback->revert($audit, false);
+                $rollback->revert($audit);
                 $this->info("{$model} #{$id} restored successfully.");
 
                 return self::SUCCESS;

@@ -148,6 +148,9 @@ Schema::create('audits', function (Blueprint $table): void {
     $table->string('guard')->nullable()->index();
     $table->string('batch_id')->nullable()->index();
     $table->json('context')->nullable();
+
+    $table->string('source')->nullable()->index();
+    $table->softDeletes();
     $table->index('event');
     $table->index('created_at');
 });
@@ -157,6 +160,7 @@ Schema::create('audit_http_requests', function (Blueprint $table): void {
     $table->unsignedBigInteger('audit_id')->nullable()->index();
     $table->string('method', 10);
     $table->text('url');
+    $table->string('host')->nullable()->index();
     $table->integer('status_code')->nullable();
     $table->integer('duration_ms')->nullable();
     $table->boolean('failed')->default(false);
@@ -165,6 +169,12 @@ Schema::create('audit_http_requests', function (Blueprint $table): void {
     $table->json('response_headers')->nullable();
     $table->text('response_body')->nullable();
     $table->timestamp('created_at')->useCurrent();
+});
+
+Schema::create('audit_tag', function (Blueprint $table): void {
+    $table->bigIncrements('id');
+    $table->unsignedBigInteger('audit_id')->index();
+    $table->string('tag')->index();
 });
 
 $GLOBALS['bench_app'] = $app;

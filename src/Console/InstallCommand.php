@@ -17,6 +17,8 @@ class InstallCommand extends Command
 
     /**
      * Publish config files and migrations for Recordkeeper and laravel-auditing.
+     *
+     * @return int The command exit code.
      */
     public function handle(): int
     {
@@ -88,6 +90,8 @@ class InstallCommand extends Command
 
     /**
      * Check if the Recordkeeper extension migration has already been published.
+     *
+     * @return bool True if the migration file already exists.
      */
     private function recordkeeperMigrationExists(): bool
     {

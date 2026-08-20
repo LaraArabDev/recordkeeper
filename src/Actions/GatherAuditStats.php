@@ -10,23 +10,20 @@ use LaraArabDev\Recordkeeper\Models\Audit;
 
 /**
  * Aggregate audit statistics by event, model, and actor.
- *
- * @return array{total: int, by_event: array, top_models: array, top_actors: array, since: ?Carbon}
  */
 final class GatherAuditStats
 {
+    /**
+     * Gather aggregated audit statistics, optionally filtered by a date threshold.
+     *
+     * @param  string|null  $sinceRaw  A human-readable date string (e.g. "7 days ago") to filter from, or null for all records.
+     * @return array{total: int, by_event: array, top_models: array, top_actors: array, since: ?Carbon}
+     */
     public function __invoke(?string $sinceRaw = null): array
     {
-        $since = null;
-        if ($sinceRaw !== null) {
-            $ts = strtotime($sinceRaw);
-            $since = $ts !== false ? Carbon::createFromTimestamp($ts) : null;
-        }
+        $since = $this->parseSince($sinceRaw);
 
-        $base = Audit::query();
-        if ($since) {
-            $base->where('created_at', '>=', $since);
-        }
+        $base = Audit::query()->when($since, fn ($q) => $q->where('created_at', '>=', $since));
 
         return [
             'total' => (clone $base)->count(),
@@ -56,5 +53,22 @@ final class GatherAuditStats
                 ->all(),
             'since' => $since,
         ];
+    }
+
+    /**
+     * Parse a human-readable date string into a Carbon instance.
+     *
+     * @param  string|null  $sinceRaw  The raw date string to parse, or null.
+     * @return Carbon|null The parsed Carbon instance, or null if input is null or unparseable.
+     */
+    private function parseSince(?string $sinceRaw): ?Carbon
+    {
+        if ($sinceRaw === null) {
+            return null;
+        }
+
+        $ts = strtotime($sinceRaw);
+
+        return $ts !== false ? Carbon::createFromTimestamp($ts) : null;
     }
 }

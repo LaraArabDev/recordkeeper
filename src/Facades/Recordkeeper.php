@@ -23,11 +23,15 @@ use Illuminate\Support\Facades\Facade;
  * @method static bool isEnabled()
  * @method static void pushContext(array $context)
  * @method static void clearContext()
+ * @method static array normalizeContext(mixed $context)
  *
  * @see \LaraArabDev\Recordkeeper\Recordkeeper
  */
 class Recordkeeper extends Facade
 {
+    /**
+     * Get the registered name of the component.
+     */
     protected static function getFacadeAccessor(): string
     {
         return \LaraArabDev\Recordkeeper\Recordkeeper::class;

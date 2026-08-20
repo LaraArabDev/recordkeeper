@@ -9,6 +9,11 @@ namespace LaraArabDev\Recordkeeper\Http\Middleware;
  */
 final class AuditRoute extends BaseAuditMiddleware
 {
+    /**
+     * Get the authentication guard name for web routes.
+     *
+     * @return string The guard name.
+     */
     protected function guard(): string
     {
         return 'web';
