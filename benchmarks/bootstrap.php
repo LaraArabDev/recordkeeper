@@ -148,7 +148,6 @@ Schema::create('audits', function (Blueprint $table): void {
     $table->string('guard')->nullable()->index();
     $table->string('batch_id')->nullable()->index();
     $table->json('context')->nullable();
-
     $table->string('source')->nullable()->index();
     $table->softDeletes();
     $table->index('event');
