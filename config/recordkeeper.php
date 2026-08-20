@@ -122,21 +122,6 @@ return [
     ],
 
     /*
-     * Read cache for individual audit lookups.
-     *
-     * Caches Audit::find() results in the configured cache store.
-     * Useful when the same audit record is read repeatedly (e.g. in Filament views).
-     *
-     * Works alongside any driver; cache is populated on first read and
-     * invalidated automatically when the audit is updated or deleted.
-     */
-    'cache' => [
-        'enabled' => env('RECORDKEEPER_CACHE', false),
-        'store' => env('RECORDKEEPER_CACHE_STORE', null), // null = default Laravel cache store
-        'ttl' => (int) env('RECORDKEEPER_CACHE_TTL', 300), // seconds
-    ],
-
-    /*
      * Extra pipeline stages for the middleware audit write path.
      * Each entry must be a class-string with handle(AuditPayload, Closure): mixed.
      */
