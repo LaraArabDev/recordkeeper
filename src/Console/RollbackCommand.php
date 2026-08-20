@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace LaraArabDev\Recordkeeper\Console;
 
 use Illuminate\Console\Command;
-use LaraArabDev\Recordkeeper\Actions\RollbackAudits;
 use LaraArabDev\Recordkeeper\Console\Concerns\BuildsAuditFilters;
 use LaraArabDev\Recordkeeper\Console\Concerns\ConfirmsAndExecutes;
+use LaraArabDev\Recordkeeper\Models\Audit;
+use LaraArabDev\Recordkeeper\Support\Rollback;
 use LaraArabDev\Recordkeeper\Support\TerminalRenderer;
 
 /**
@@ -33,7 +34,13 @@ class RollbackCommand extends Command
 
     protected $description = 'Revert one audit, a batch, or audits matching filters';
 
-    public function handle(RollbackAudits $rollback): int
+    /**
+     * Execute the rollback command.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
+     * @return int The command exit code.
+     */
+    public function handle(Rollback $rollback): int
     {
         if ($this->option('model-id') && ! $this->option('model')) {
             $this->error('The --model-id option requires --model to be specified.');
@@ -41,31 +48,26 @@ class RollbackCommand extends Command
             return self::FAILURE;
         }
 
-        if ($this->option('batch')) {
-            return $this->handleBatch($rollback);
-        }
-
-        if ($this->hasAnyFilter()) {
-            return $this->handleFiltered($rollback);
-        }
-
-        return $this->handleSingle($rollback);
+        return match (true) {
+            (bool) $this->option('batch') => $this->handleBatch($rollback),
+            $this->hasAnyFilter() => $this->handleFiltered($rollback),
+            default => $this->handleSingle($rollback),
+        };
     }
 
-    private function handleSingle(RollbackAudits $rollback): int
+    /**
+     * Handle rollback of a single audit record by ID.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
+     * @return int The command exit code.
+     */
+    private function handleSingle(Rollback $rollback): int
     {
         $id = $this->argument('id');
-
-        if ($id === null) {
-            $this->error('Provide an audit ID, --batch=<id>, or filter options.');
-
-            return self::FAILURE;
-        }
-
-        $audit = $rollback->findById($id);
+        $audit = $id ? Audit::find($id) : null;
 
         if ($audit === null) {
-            $this->error("Audit #{$id} not found.");
+            $this->error($id ? "Audit #{$id} not found." : 'Provide an audit ID, --batch=<id>, or filter options.');
 
             return self::FAILURE;
         }
@@ -76,7 +78,7 @@ class RollbackCommand extends Command
             return self::FAILURE;
         }
 
-        $preview = $rollback->preview($audit);
+        $preview = $rollback->revert($audit, true);
         $this->line('  <comment>Dry-run preview:</comment>');
         $this->line('  Action: '.($preview['action'] ?? 'update'));
         TerminalRenderer::diff($audit);
@@ -99,47 +101,65 @@ class RollbackCommand extends Command
         );
     }
 
-    private function handleBatch(RollbackAudits $rollback): int
+    /**
+     * Handle rollback of all audits in a batch.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
+     * @return int The command exit code.
+     */
+    private function handleBatch(Rollback $rollback): int
     {
         $batchId = (string) $this->option('batch');
 
-        if ($this->option('async') && ! $this->option('dry-run')) {
-            $audits = $rollback->findByBatch($batchId);
+        $count = Audit::where('batch_id', $batchId)
+            ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
+            ->count();
 
-            if ($audits->isEmpty()) {
-                $this->warn("No rollbackable audits found for batch: {$batchId}");
-
-                return self::SUCCESS;
-            }
-
-            $rollback->revertCollectionAsync($audits);
-            $this->info('Rollback job dispatched to queue.');
-
-            return self::SUCCESS;
-        }
-
-        $results = $rollback->revertBatch($batchId, (bool) $this->option('dry-run'));
-
-        if (empty($results)) {
+        if ($count === 0) {
             $this->warn("No rollbackable audits found for batch: {$batchId}");
 
             return self::SUCCESS;
         }
 
-        if ($this->option('dry-run')) {
-            $this->info('Dry-run — '.count($results).' audit(s) would be reverted in batch: '.$batchId);
+        $this->line("  <comment>{$count} audit(s) would be reverted in batch: {$batchId}</comment>");
 
+        if ($this->option('dry-run')) {
             return self::SUCCESS;
         }
 
-        $this->info('Rolled back '.count($results).' audit(s) in batch: '.$batchId);
+        return $this->confirmAndExecute(
+            confirmMessage: "Rollback {$count} audit(s) in batch {$batchId}?",
+            dryRunMessage: '',
+            onSync: function () use ($rollback, $batchId, $count): int {
+                $rollback->revertBatch($batchId);
+                $this->info("Rolled back {$count} audit(s) in batch: {$batchId}");
 
-        return self::SUCCESS;
+                return self::SUCCESS;
+            },
+            onAsync: function () use ($rollback, $batchId): void {
+                $audits = Audit::where('batch_id', $batchId)
+                    ->whereIn('event', Audit::ROLLBACKABLE_EVENTS)
+                    ->get();
+
+                $rollback->revertCollectionAsync($audits);
+            },
+            asyncMessage: 'Rollback job dispatched to queue.',
+        );
     }
 
-    private function handleFiltered(RollbackAudits $rollback): int
+    /**
+     * Handle rollback of audits matching the provided filter options.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
+     * @return int The command exit code.
+     */
+    private function handleFiltered(Rollback $rollback): int
     {
-        $audits = $rollback->findByQuery($this->buildAuditQuery());
+        $audits = $this->buildAuditQuery()
+            ->rollbackable()
+            ->latest()
+            ->builder()
+            ->get();
 
         if ($audits->isEmpty()) {
             $this->warn('No rollbackable audits found matching the given filters.');

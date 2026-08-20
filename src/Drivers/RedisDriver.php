@@ -22,6 +22,12 @@ final class RedisDriver implements AuditDriver
 
     private const INDEX = 'rk:audits:index';
 
+    /**
+     * Create a new Redis audit driver instance.
+     *
+     * @param  Connection  $redis  The Redis connection instance.
+     * @param  int  $ttl  Time-to-live in seconds for audit keys (0 = no expiry).
+     */
     public function __construct(
         private readonly Connection $redis,
         private readonly int $ttl = 0,
@@ -29,6 +35,9 @@ final class RedisDriver implements AuditDriver
 
     /**
      * Persist an audit payload to Redis.
+     *
+     * @param  AuditPayload  $payload  The audit data to persist.
+     * @return Audit The audit model instance hydrated with persisted data.
      */
     public function persist(AuditPayload $payload): Audit
     {
@@ -57,6 +66,9 @@ final class RedisDriver implements AuditDriver
 
     /**
      * Find an audit record by its ID in Redis.
+     *
+     * @param  int|string  $id  The audit record identifier.
+     * @return Audit|null The audit model instance, or null if not found.
      */
     public function find(int|string $id): ?Audit
     {

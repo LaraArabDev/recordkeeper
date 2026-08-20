@@ -18,7 +18,7 @@ trait ResolvesHttpFilterConfig
     /**
      * Build an HttpFilterConfig from the #[TrackHttp] attribute or TracksOutboundHttp trait on a class.
      *
-     * @param  class-string  $className
+     * @param  class-string  $className  The fully qualified class name to resolve config from.
      */
     private function resolveHttpFilterConfig(string $className): ?HttpFilterConfig
     {

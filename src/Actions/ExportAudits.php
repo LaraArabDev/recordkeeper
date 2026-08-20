@@ -34,6 +34,10 @@ final class ExportAudits
 
     /**
      * Stream a valid JSON array without holding all rows in memory.
+     *
+     * @param  Builder  $query  The pre-filtered Eloquent query builder.
+     * @param  resource  $handle  A writable file handle.
+     * @return int Number of exported audit records.
      */
     private function exportJson(Builder $query, mixed $handle): int
     {
@@ -60,6 +64,10 @@ final class ExportAudits
 
     /**
      * Stream CSV with header row on first record.
+     *
+     * @param  Builder  $query  The pre-filtered Eloquent query builder.
+     * @param  resource  $handle  A writable file handle.
+     * @return int Number of exported audit records.
      */
     private function exportCsv(Builder $query, mixed $handle): int
     {
@@ -85,6 +93,10 @@ final class ExportAudits
 
     /**
      * Stream newline-delimited JSON (one object per line).
+     *
+     * @param  Builder  $query  The pre-filtered Eloquent query builder.
+     * @param  resource  $handle  A writable file handle.
+     * @return int Number of exported audit records.
      */
     private function exportNdjson(Builder $query, mixed $handle): int
     {

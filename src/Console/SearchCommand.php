@@ -35,6 +35,8 @@ class SearchCommand extends Command
 
     /**
      * Build filters from CLI options and render results.
+     *
+     * @return int The command exit code.
      */
     public function handle(): int
     {

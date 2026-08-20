@@ -23,17 +23,21 @@ class HistoryCommand extends Command
 
     protected $description = 'Show change history for a specific model instance';
 
+    /**
+     * Execute the history command, displaying the change timeline for a model instance.
+     *
+     * @return int The command exit code.
+     */
     public function handle(): int
     {
         $model = (string) $this->argument('model');
         $id = (string) $this->argument('id');
-        $limit = (int) $this->option('limit');
 
         $audits = (new AuditQuery)
             ->model($model)
             ->subjectId($id)
             ->latest()
-            ->limit($limit)
+            ->limit((int) $this->option('limit'))
             ->builder()
             ->get();
 
@@ -43,19 +47,19 @@ class HistoryCommand extends Command
             return self::SUCCESS;
         }
 
-        if ($this->option('format') === 'json') {
-            TerminalRenderer::json(TerminalRenderer::mapToRows($audits));
-
-            return self::SUCCESS;
-        }
-
-        $this->renderTimeline($audits, $model, $id);
+        $this->option('format') === 'json'
+            ? TerminalRenderer::json(TerminalRenderer::mapToRows($audits))
+            : $this->renderTimeline($audits, $model, $id);
 
         return self::SUCCESS;
     }
 
     /**
-     * @param  Collection<int, Audit>  $audits
+     * Render the audit history as a chronological timeline in the terminal.
+     *
+     * @param  Collection<int, Audit>  $audits  The collection of audit records.
+     * @param  string  $model  The model class name.
+     * @param  string  $id  The model instance ID.
      */
     private function renderTimeline(Collection $audits, string $model, string $id): void
     {

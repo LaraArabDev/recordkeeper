@@ -14,6 +14,11 @@ use OwenIt\Auditing\Contracts\UserResolver;
  */
 final class ApiActorResolver implements UserResolver
 {
+    /**
+     * Resolve the authenticated user by iterating all non-web auth guards.
+     *
+     * @return mixed The authenticated user, or null if no guard yields a result.
+     */
     public static function resolve(): mixed
     {
         foreach (config('auth.guards', []) as $name => $guard) {

@@ -6,6 +6,13 @@ namespace LaraArabDev\Recordkeeper\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Pivot model linking tags to audit records.
+ *
+ * @property int $id
+ * @property int $audit_id
+ * @property string $tag
+ */
 class AuditTag extends Model
 {
     public $timestamps = false;

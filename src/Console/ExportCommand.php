@@ -33,6 +33,9 @@ class ExportCommand extends Command
 
     /**
      * Build a filtered query and export matching audits to the given file.
+     *
+     * @param  ExportAudits  $exporter  The export audits action.
+     * @return int The command exit code.
      */
     public function handle(ExportAudits $exporter): int
     {

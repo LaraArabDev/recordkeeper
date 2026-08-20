@@ -15,7 +15,11 @@ final class TailAudits
     /**
      * Fetch audits newer than the given ID, applying optional filters.
      *
-     * @return Collection<int, Audit>
+     * @param  int  $lastId  The last seen audit ID; only records with a higher ID are returned.
+     * @param  string|null  $model  Optional auditable model type to filter by (matched as suffix with LIKE).
+     * @param  string|null  $event  Optional event name to filter by (exact match).
+     * @param  string|null  $guard  Optional guard name to filter by (exact match).
+     * @return Collection<int, Audit> The audit records newer than the given ID, ordered by ID ascending.
      */
     public function poll(int $lastId, ?string $model = null, ?string $event = null, ?string $guard = null): Collection
     {
@@ -38,6 +42,8 @@ final class TailAudits
 
     /**
      * Get the current maximum audit ID.
+     *
+     * @return int The highest audit ID, or 0 if no audits exist.
      */
     public function latestId(): int
     {

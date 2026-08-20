@@ -19,6 +19,12 @@ class StatsCommand extends Command
 
     protected $description = 'Show audit statistics dashboard';
 
+    /**
+     * Execute the stats command and display the audit statistics dashboard.
+     *
+     * @param  GatherAuditStats  $gather  The stats gathering action.
+     * @return int The command exit code.
+     */
     public function handle(GatherAuditStats $gather): int
     {
         $stats = $gather($this->option('since'));
@@ -34,6 +40,11 @@ class StatsCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Render the statistics dashboard to the terminal.
+     *
+     * @param  array<string, mixed>  $stats  The gathered statistics data.
+     */
     private function renderDashboard(array $stats): void
     {
         $this->newLine();

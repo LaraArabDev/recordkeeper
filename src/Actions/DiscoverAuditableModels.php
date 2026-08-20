@@ -16,8 +16,8 @@ final class DiscoverAuditableModels
     /**
      * Scan paths for models using AuditsChanges and return their resolved config.
      *
-     * @param  list<string>  $paths
-     * @return list<array{model: string, events: string, redact: string, encrypt: string, retention: string}>
+     * @param  list<string>  $paths  Relative paths (from base_path) to scan for model files.
+     * @return list<array{model: string, events: string, redact: string, encrypt: string, retention: string}> The resolved audit configuration for each discovered model.
      */
     public function __invoke(array $paths): array
     {
@@ -44,8 +44,10 @@ final class DiscoverAuditableModels
     }
 
     /**
-     * @param  list<string>  $paths
-     * @return list<class-string>
+     * Discover model classes that use the AuditsChanges trait within the given paths.
+     *
+     * @param  list<string>  $paths  Relative paths (from base_path) to scan for PHP files.
+     * @return list<class-string> Fully qualified class names of auditable models.
      */
     private function discoverModels(array $paths): array
     {
@@ -68,7 +70,10 @@ final class DiscoverAuditableModels
     }
 
     /**
-     * @return class-string|null
+     * Extract the fully qualified class name from a PHP file by parsing its namespace and class declarations.
+     *
+     * @param  string  $path  The absolute file path to the PHP file.
+     * @return class-string|null The fully qualified class name, or null if it cannot be determined.
      */
     private function fileToClass(string $path): ?string
     {
@@ -84,6 +89,12 @@ final class DiscoverAuditableModels
         return null;
     }
 
+    /**
+     * Determine whether the given class uses the AuditsChanges trait.
+     *
+     * @param  string  $class  The fully qualified class name to check.
+     * @return bool True if the class uses AuditsChanges.
+     */
     private function isAuditable(string $class): bool
     {
         if (! class_exists($class)) {

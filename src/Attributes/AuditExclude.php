@@ -16,6 +16,11 @@ final class AuditExclude
 {
     public readonly array $attributes;
 
+    /**
+     * Create a new AuditExclude attribute instance.
+     *
+     * @param  string  ...$attributes  The model attribute names to exclude from auditing.
+     */
     public function __construct(string ...$attributes)
     {
         $this->attributes = $attributes;

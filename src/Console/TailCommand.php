@@ -23,6 +23,12 @@ class TailCommand extends Command
 
     protected $description = 'Live-follow audit records (like tail -f)';
 
+    /**
+     * Poll for new audit records in a loop and render them as they arrive.
+     *
+     * @param  TailAudits  $tailer  The tail audits action.
+     * @return int The command exit code.
+     */
     public function handle(TailAudits $tailer): int
     {
         $lastId = $tailer->latestId();
@@ -55,6 +61,11 @@ class TailCommand extends Command
         return self::SUCCESS; // @codeCoverageIgnore
     }
 
+    /**
+     * Render a single audit as a formatted terminal line.
+     *
+     * @param  Audit  $audit  The audit record to render.
+     */
     private function renderLine(Audit $audit): void
     {
         $time = $audit->created_at?->format('H:i:s') ?? '';
@@ -66,6 +77,11 @@ class TailCommand extends Command
         $this->line("{$time}  {$event}  {$subject}  {$actor}  {$changed}");
     }
 
+    /**
+     * Render a single audit as NDJSON.
+     *
+     * @param  Audit  $audit  The audit record to render.
+     */
     private function renderJson(Audit $audit): void
     {
         $this->line(json_encode(TerminalRenderer::auditToRow($audit)));

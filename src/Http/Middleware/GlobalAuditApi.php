@@ -18,16 +18,35 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class GlobalAuditApi extends BaseAuditMiddleware
 {
+    /**
+     * Get the authentication guard name for global API route auditing.
+     *
+     * @return string The guard name.
+     */
     protected function guard(): string
     {
         return 'api';
     }
 
+    /**
+     * Resolve the authenticated actor using multi-guard resolution.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @return mixed The authenticated user, or null if unauthenticated.
+     */
     protected function resolveActor(Request $request): mixed
     {
         return ApiActorResolver::resolve();
     }
 
+    /**
+     * Handle the incoming request, skipping if excluded or already audited.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @param  Closure  $next  The next middleware closure.
+     * @param  string  ...$options  Middleware parameter strings.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, Closure $next, string ...$options): Response
     {
         if (! config('recordkeeper.routes.api', true)) {

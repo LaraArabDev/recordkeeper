@@ -18,7 +18,10 @@ final class ProcessRollbackCollection implements ShouldQueue
     use InteractsWithQueue, Queueable;
 
     /**
-     * @param  list<int>  $auditIds
+     * Create a new ProcessRollbackCollection job instance.
+     *
+     * @param  list<int>  $auditIds  The IDs of the audit records to revert.
+     * @param  bool  $recordTrail  Whether to record trail audits for each rollback.
      */
     public function __construct(
         private readonly array $auditIds,
@@ -27,6 +30,8 @@ final class ProcessRollbackCollection implements ShouldQueue
 
     /**
      * Execute the collection rollback job.
+     *
+     * @param  Rollback  $rollback  The rollback service instance.
      */
     public function handle(Rollback $rollback): void
     {

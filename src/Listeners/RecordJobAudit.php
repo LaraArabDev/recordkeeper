@@ -29,7 +29,12 @@ final class RecordJobAudit
 
     public function __construct(private readonly RecordAudit $recordAudit) {}
 
-    /** @return array<string, string> */
+    /**
+     * Register event listeners for job lifecycle events.
+     *
+     * @param  Dispatcher  $events  The event dispatcher instance.
+     * @return array<string, string>
+     */
     public function subscribe(Dispatcher $events): array
     {
         return [
@@ -42,6 +47,8 @@ final class RecordJobAudit
 
     /**
      * Record an audit when a job is queued.
+     *
+     * @param  JobQueued  $event  The job queued event instance.
      */
     public function onQueued(JobQueued $event): void
     {
@@ -65,6 +72,8 @@ final class RecordJobAudit
 
     /**
      * Record an audit when a job starts processing.
+     *
+     * @param  JobProcessing  $event  The job processing event instance.
      */
     public function onProcessing(JobProcessing $event): void
     {
@@ -86,7 +95,7 @@ final class RecordJobAudit
             'attempts' => $event->job->attempts(),
         ], $this->resolveTags($jobClass, $attr));
 
-        if (config('recordkeeper.http.enabled', false)) {
+        if ($audit->exists && config('recordkeeper.http.enabled', false)) {
             $filterConfig = $this->resolveHttpFilterConfig($jobClass);
             app(HttpTracker::class)->setContext($audit->id, $filterConfig);
         }
@@ -94,6 +103,8 @@ final class RecordJobAudit
 
     /**
      * Record an audit when a job finishes processing.
+     *
+     * @param  JobProcessed  $event  The job processed event instance.
      */
     public function onProcessed(JobProcessed $event): void
     {
@@ -122,6 +133,8 @@ final class RecordJobAudit
 
     /**
      * Record an audit when a job fails.
+     *
+     * @param  JobFailed  $event  The job failed event instance.
      */
     public function onFailed(JobFailed $event): void
     {
@@ -152,7 +165,8 @@ final class RecordJobAudit
     /**
      * Determine whether the given job class should be audited.
      *
-     * @param  class-string  $jobClass
+     * @param  class-string  $jobClass  The fully qualified job class name.
+     * @param  AuditJob|null  $attr  The resolved AuditJob attribute, if present.
      */
     private function shouldAudit(string $jobClass, ?AuditJob $attr): bool
     {
@@ -173,6 +187,8 @@ final class RecordJobAudit
      *
      * Priority: attribute > trait > empty.
      *
+     * @param  class-string  $jobClass  The fully qualified job class name.
+     * @param  AuditJob|null  $attr  The resolved AuditJob attribute, if present.
      * @return list<string>
      */
     private function resolveTags(string $jobClass, ?AuditJob $attr): array
@@ -194,6 +210,10 @@ final class RecordJobAudit
      * Resolve a per-lifecycle-event toggle from attribute, trait, or default true.
      *
      * Priority: attribute > trait > true.
+     *
+     * @param  class-string  $jobClass  The fully qualified job class name.
+     * @param  AuditJob|null  $attr  The resolved AuditJob attribute, if present.
+     * @param  string  $event  The lifecycle event name (queued, processing, processed, failed).
      */
     private function resolveJobToggle(string $jobClass, ?AuditJob $attr, string $event): bool
     {
@@ -225,7 +245,7 @@ final class RecordJobAudit
     /**
      * Check whether the given class uses the AuditsJob trait.
      *
-     * @param  class-string  $jobClass
+     * @param  class-string  $jobClass  The fully qualified job class name.
      */
     private function usesTrait(string $jobClass): bool
     {
@@ -240,8 +260,8 @@ final class RecordJobAudit
      * Write an audit record for a job lifecycle event.
      *
      * @param  string  $eventName  The audit event name (e.g. 'job.queued').
-     * @param  array<string, mixed>  $context
-     * @param  list<string>  $tags
+     * @param  array<string, mixed>  $context  Contextual data to store with the audit.
+     * @param  list<string>  $tags  Tags to attach to the audit record.
      */
     private function write(string $eventName, array $context, array $tags): Audit
     {
@@ -260,6 +280,7 @@ final class RecordJobAudit
     /**
      * Resolve the fully qualified class name from a queue job payload.
      *
+     * @param  mixed  $job  The queue job instance from the event.
      * @return class-string
      */
     private function resolveJobClass(mixed $job): string
@@ -278,7 +299,7 @@ final class RecordJobAudit
     /**
      * Retrieve the #[AuditJob] attribute instance from a job class, if present.
      *
-     * @param  class-string  $jobClass
+     * @param  class-string  $jobClass  The fully qualified job class name.
      */
     private function attribute(string $jobClass): ?AuditJob
     {

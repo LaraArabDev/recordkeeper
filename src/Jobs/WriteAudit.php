@@ -22,10 +22,17 @@ final class WriteAudit implements ShouldQueue
 {
     use InteractsWithQueue, Queueable;
 
+    /**
+     * Create a new WriteAudit job instance.
+     *
+     * @param  array<string, mixed>  $payload  The serialized audit payload data.
+     */
     public function __construct(private readonly array $payload) {}
 
     /**
      * Persist the audit payload via the configured storage driver.
+     *
+     * @param  AuditDriverManager  $manager  The audit driver manager.
      */
     public function handle(AuditDriverManager $manager): void
     {

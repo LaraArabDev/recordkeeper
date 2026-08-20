@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper\Tests\Unit\Actions;
 
-use LaraArabDev\Recordkeeper\Actions\UndoChanges;
 use LaraArabDev\Recordkeeper\Support\AttributeResolver;
+use LaraArabDev\Recordkeeper\Support\AuditQuery;
+use LaraArabDev\Recordkeeper\Support\Rollback;
 use LaraArabDev\Recordkeeper\Tests\Fixtures\Order;
 use LaraArabDev\Recordkeeper\Tests\TestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -13,7 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\Test;
 
 #[Group('actions')]
-#[CoversClass(UndoChanges::class)]
+#[CoversClass(Rollback::class)]
 class UndoChangesTest extends TestCase
 {
     protected function setUp(): void
@@ -28,8 +29,7 @@ class UndoChangesTest extends TestCase
         $order = Order::create(['status' => 'pending']);
         $order->update(['status' => 'shipped']);
 
-        $undo = app(UndoChanges::class);
-        $audits = $undo->findUndoable(1);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(1)->builder()->get();
 
         $this->assertCount(1, $audits);
         $this->assertSame('updated', $audits->first()->event);
@@ -41,8 +41,7 @@ class UndoChangesTest extends TestCase
         Order::create(['status' => 'a']);
         Order::create(['status' => 'b']);
 
-        $undo = app(UndoChanges::class);
-        $audits = $undo->findUndoable(5, 'Order');
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(5)->model('Order')->builder()->get();
 
         foreach ($audits as $audit) {
             $this->assertStringContainsString('Order', $audit->auditable_type);
@@ -52,8 +51,7 @@ class UndoChangesTest extends TestCase
     #[Test]
     public function find_undoable_returns_empty_when_none_exist(): void
     {
-        $undo = app(UndoChanges::class);
-        $audits = $undo->findUndoable(5);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(5)->builder()->get();
 
         $this->assertCount(0, $audits);
     }
@@ -64,9 +62,8 @@ class UndoChangesTest extends TestCase
         $order = Order::create(['status' => 'pending']);
         $order->update(['status' => 'shipped']);
 
-        $undo = app(UndoChanges::class);
-        $audits = $undo->findUndoable(1);
-        $results = $undo->revert($audits);
+        $audits = (new AuditQuery)->rollbackable()->latest()->limit(1)->builder()->get();
+        $results = app(Rollback::class)->revertCollection($audits);
 
         $this->assertCount(1, $results);
         $this->assertSame('pending', $order->fresh()->status);

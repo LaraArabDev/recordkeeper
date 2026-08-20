@@ -29,6 +29,7 @@ final readonly class HttpFilterConfig
      * - If includeHosts is set, host must be in the allowlist (takes precedence over excludeHosts).
      * - Otherwise, host must not be in the denylist.
      *
+     * @param  string  $host  The hostname to evaluate.
      * @return bool Whether the host is allowed for tracking.
      */
     public function allowsHost(string $host): bool

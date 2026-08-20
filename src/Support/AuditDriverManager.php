@@ -19,6 +19,11 @@ use LaraArabDev\Recordkeeper\Drivers\RedisDriver;
  */
 final class AuditDriverManager extends Manager
 {
+    /**
+     * Get the default driver name from config.
+     *
+     * @return string The configured default driver name.
+     */
     public function getDefaultDriver(): string
     {
         return config('recordkeeper.driver', 'database');
@@ -27,18 +32,25 @@ final class AuditDriverManager extends Manager
     /**
      * Get an audit driver instance by name.
      *
-     * @param  string|null  $driver
+     * @param  string|null  $driver  The driver name, or null for the default driver.
+     * @return AuditDriver The resolved audit driver instance.
      */
     public function driver($driver = null): AuditDriver
     {
         return parent::driver($driver);
     }
 
+    /**
+     * Create the default database storage driver.
+     */
     protected function createDatabaseDriver(): DatabaseDriver
     {
         return new DatabaseDriver;
     }
 
+    /**
+     * Create the Redis storage driver with configured connection and TTL.
+     */
     protected function createRedisDriver(): RedisDriver
     {
         $cfg = config('recordkeeper.drivers.redis', []);
@@ -48,6 +60,9 @@ final class AuditDriverManager extends Manager
         return new RedisDriver($connection, $ttl);
     }
 
+    /**
+     * Create the log channel driver with configured channel and level.
+     */
     protected function createLogDriver(): LogDriver
     {
         $cfg = config('recordkeeper.drivers.log', []);
@@ -58,6 +73,9 @@ final class AuditDriverManager extends Manager
         );
     }
 
+    /**
+     * Create the null driver that discards all audits.
+     */
     protected function createNullDriver(): NullDriver
     {
         return new NullDriver;

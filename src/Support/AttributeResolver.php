@@ -26,6 +26,7 @@ final class AttributeResolver
      * Resolve and cache the audit configuration for a model class.
      *
      * @param  string|object  $model  FQCN or model instance.
+     * @return AuditConfig The resolved audit configuration data object.
      */
     public static function resolve(string|object $model): AuditConfig
     {
@@ -46,7 +47,7 @@ final class AttributeResolver
         $modifiers = [];
         $threshold = 0;
         $tags = [];
-        $retentionDays = (int) config('recordkeeper.retention.default_days', 365);
+        $retentionDays = (int) config('recordkeeper.retention.default_days', 0);
 
         $auditableAttrs = $ref->getAttributes(Auditable::class);
         if (! empty($auditableAttrs)) {
@@ -131,6 +132,9 @@ final class AttributeResolver
         return $config;
     }
 
+    /**
+     * Clear the in-memory resolution cache.
+     */
     public static function clearCache(): void
     {
         self::$cache = [];
@@ -139,7 +143,8 @@ final class AttributeResolver
     /**
      * Infer attribute names from the model's fillable and cast definitions.
      *
-     * @return list<string>
+     * @param  string|object  $model  FQCN or model instance to inspect.
+     * @return list<string> The unique list of inferred attribute names.
      */
     private static function guessModelAttributes(string|object $model): array
     {

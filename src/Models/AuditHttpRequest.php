@@ -50,7 +50,11 @@ class AuditHttpRequest extends Model
         'created_at' => 'datetime',
     ];
 
-    /** @return BelongsTo<Audit, $this> */
+    /**
+     * Get the audit record that this HTTP request belongs to.
+     *
+     * @return BelongsTo<Audit, $this>
+     */
     public function audit(): BelongsTo
     {
         return $this->belongsTo(Audit::class);

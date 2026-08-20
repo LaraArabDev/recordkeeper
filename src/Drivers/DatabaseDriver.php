@@ -17,6 +17,9 @@ final class DatabaseDriver implements AuditDriver
 {
     /**
      * Persist an audit payload to the database.
+     *
+     * @param  AuditPayload  $payload  The audit data to persist.
+     * @return Audit The persisted audit model instance.
      */
     public function persist(AuditPayload $payload): Audit
     {
@@ -29,6 +32,9 @@ final class DatabaseDriver implements AuditDriver
 
     /**
      * Find an audit record by its ID.
+     *
+     * @param  int|string  $id  The audit record primary key.
+     * @return Audit|null The audit model instance, or null if not found.
      */
     public function find(int|string $id): ?Audit
     {

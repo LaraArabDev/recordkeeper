@@ -12,6 +12,11 @@ use Attribute;
  */
 final class AuditCommand
 {
+    /**
+     * Create a new AuditCommand attribute instance.
+     *
+     * @param  list<string>  $tags  Tags to apply to audits generated from this command.
+     */
     public function __construct(
         public readonly array $tags = [],
     ) {}

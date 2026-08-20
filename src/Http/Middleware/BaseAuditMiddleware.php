@@ -24,13 +24,30 @@ use Symfony\Component\HttpFoundation\Response;
  */
 abstract class BaseAuditMiddleware
 {
+    /**
+     * Create a new base audit middleware instance.
+     *
+     * @param  RedactValues  $redactValues  The value redaction action.
+     * @param  RecordAudit  $recordAudit  The audit recording action.
+     */
     public function __construct(
         private readonly RedactValues $redactValues,
         private readonly RecordAudit $recordAudit,
     ) {}
 
+    /**
+     * Get the authentication guard name for this middleware.
+     *
+     * @return string The guard name (e.g. 'web', 'api').
+     */
     abstract protected function guard(): string;
 
+    /**
+     * Resolve the authenticated actor for the current request.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @return mixed The authenticated user, or null if unauthenticated.
+     */
     protected function resolveActor(Request $request): mixed
     {
         return auth()->guard($this->guard())->user();
@@ -38,6 +55,13 @@ abstract class BaseAuditMiddleware
 
     /**
      * Handle the incoming request and record an audit entry.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @param  Closure  $next  The next middleware closure.
+     * @param  string  ...$options  Middleware parameter strings (e.g. 'tag=foo', 'body=true').
+     * @return Response The HTTP response.
+     *
+     * @throws \Throwable When strict mode is enabled and audit recording fails.
      */
     public function handle(Request $request, Closure $next, string ...$options): Response
     {
@@ -67,6 +91,14 @@ abstract class BaseAuditMiddleware
         return $response;
     }
 
+    /**
+     * Record the audit entry for the given request and response.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @param  Response  $response  The HTTP response.
+     * @param  array{tag: ?string, body: bool, sample: float}  $opts  Parsed middleware options.
+     * @param  int  $duration  Request duration in milliseconds.
+     */
     protected function record(Request $request, Response $response, array $opts, int $duration): void
     {
         $user = $this->resolveActor($request);
@@ -136,6 +168,12 @@ abstract class BaseAuditMiddleware
         return $opts;
     }
 
+    /**
+     * Determine whether the request path is excluded by configuration.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @return bool True if the request should be excluded from auditing.
+     */
     protected function isExcludedByConfig(Request $request): bool
     {
         $exclude = config('recordkeeper.routes.exclude', []);
@@ -143,23 +181,28 @@ abstract class BaseAuditMiddleware
         return ! empty($exclude) && $request->is(...$exclude);
     }
 
+    /**
+     * Check whether the route already has explicit audit middleware attached.
+     *
+     * @param  Request  $request  The incoming HTTP request.
+     * @return bool True if explicit audit middleware is present on the route.
+     */
     protected function hasExplicitAuditMiddleware(Request $request): bool
     {
         $route = $request->route();
+
         if (! $route) {
             return false;
         }
 
-        $middleware = $route->gatherMiddleware();
+        $explicit = ['audit', 'audit.api', AuditRoute::class, AuditApi::class];
 
-        foreach ($middleware as $m) {
-            if (
-                $m === 'audit'
-                || $m === 'audit.api'
-                || $m === AuditRoute::class
-                || $m === AuditApi::class
-                || str_starts_with((string) $m, AuditRoute::class.':')
-                || str_starts_with((string) $m, AuditApi::class.':')
+        foreach ($route->gatherMiddleware() as $m) {
+            $name = (string) $m;
+
+            if (in_array($name, $explicit, true)
+                || str_starts_with($name, AuditRoute::class.':')
+                || str_starts_with($name, AuditApi::class.':')
             ) {
                 return true;
             }
@@ -168,7 +211,11 @@ abstract class BaseAuditMiddleware
         return false;
     }
 
-    /** @return array{tag: ?string, body: bool, sample: float} */
+    /**
+     * Build middleware options from the global route auditing configuration.
+     *
+     * @return array{tag: ?string, body: bool, sample: float} The options array.
+     */
     protected function buildGlobalOptionsFromConfig(): array
     {
         return [
@@ -178,7 +225,12 @@ abstract class BaseAuditMiddleware
         ];
     }
 
-    /** @return list<string> */
+    /**
+     * Convert an options array to middleware parameter strings.
+     *
+     * @param  array<string, mixed>  $opts  The options to convert.
+     * @return list<string> The formatted parameter strings (e.g. 'key=value').
+     */
     protected function optsToStrings(array $opts): array
     {
         $strings = [];

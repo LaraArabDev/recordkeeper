@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace LaraArabDev\Recordkeeper;
 
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
-use LaraArabDev\Recordkeeper\Cache\AuditCache;
 use LaraArabDev\Recordkeeper\Console\ExportCommand;
 use LaraArabDev\Recordkeeper\Console\HistoryCommand;
 use LaraArabDev\Recordkeeper\Console\InstallCommand;
@@ -36,6 +36,9 @@ use LaraArabDev\Recordkeeper\Support\HttpTracker;
  */
 class RecordkeeperServiceProvider extends ServiceProvider
 {
+    /**
+     * Register core singletons and merge package config.
+     */
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/recordkeeper.php', 'recordkeeper');
@@ -43,15 +46,11 @@ class RecordkeeperServiceProvider extends ServiceProvider
         $this->app->singleton(Recordkeeper::class);
         $this->app->singleton(HttpTracker::class);
         $this->app->singleton(AuditDriverManager::class);
-
-        $this->app->singleton(AuditCache::class, function ($app) {
-            $store = $app['cache']->store(config('recordkeeper.cache.store'));
-            $ttl = (int) config('recordkeeper.cache.ttl', 300);
-
-            return new AuditCache($store, $ttl);
-        });
     }
 
+    /**
+     * Boot package services: migrations, middleware, listeners, publishing, and commands.
+     */
     public function boot(): void
     {
         $this->registerMigrations();
@@ -66,6 +65,9 @@ class RecordkeeperServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * Register publishable config and migration files.
+     */
     private function offerPublishing(): void
     {
         $this->publishes([
@@ -77,6 +79,9 @@ class RecordkeeperServiceProvider extends ServiceProvider
         ], 'recordkeeper-migrations');
     }
 
+    /**
+     * Register all Artisan console commands.
+     */
     private function registerCommands(): void
     {
         $this->commands([
@@ -96,11 +101,17 @@ class RecordkeeperServiceProvider extends ServiceProvider
         ]);
     }
 
+    /**
+     * Load package migrations from the database directory.
+     */
     private function registerMigrations(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 
+    /**
+     * Register 'audit' and 'audit.api' middleware aliases.
+     */
     private function registerMiddlewareAliases(): void
     {
         $router = $this->app['router'];
@@ -108,6 +119,9 @@ class RecordkeeperServiceProvider extends ServiceProvider
         $router->aliasMiddleware('audit.api', AuditApi::class);
     }
 
+    /**
+     * Push global audit middleware into web/api groups when enabled.
+     */
     private function registerGlobalRouteAuditing(): void
     {
         if (! config('recordkeeper.routes.enabled', false)) {
@@ -125,14 +139,19 @@ class RecordkeeperServiceProvider extends ServiceProvider
         }
     }
 
+    /**
+     * Set the audit implementation and register pseudo-type morph map.
+     */
     private function registerAuditModel(): void
     {
-        $this->app['config']->set(
-            'audit.implementation',
-            Audit::class
-        );
+        $this->app['config']->set('audit.implementation', Audit::class);
+
+        Relation::morphMap(array_fill_keys(Audit::PSEUDO_TYPES, Audit::class));
     }
 
+    /**
+     * Subscribe job, command, event, and HTTP listeners to the event dispatcher.
+     */
     private function registerAuditListeners(): void
     {
         $this->app['events']->subscribe(RecordJobAudit::class);

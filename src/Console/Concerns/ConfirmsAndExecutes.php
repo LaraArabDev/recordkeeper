@@ -18,6 +18,7 @@ trait ConfirmsAndExecutes
      * @param  callable(): int  $onSync  Callback executed synchronously on confirmation.
      * @param  (callable(): void)|null  $onAsync  Callback dispatched to the queue when --async is set.
      * @param  string  $asyncMessage  Info message displayed after async dispatch.
+     * @return int The command exit code.
      */
     protected function confirmAndExecute(
         string $confirmMessage,
