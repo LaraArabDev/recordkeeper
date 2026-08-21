@@ -846,6 +846,26 @@ Then set `RECORDKEEPER_DRIVER=custom` in your `.env`.
 Model auditing tracks *data changes* — what fields were modified, old vs new values, who changed them. Route auditing tracks *HTTP requests* — who accessed what endpoint, response time, status code. They complement each other: route auditing tells you "User 42 hit `POST /api/orders`", while model auditing tells you "User 42 created Order #789 with these field values."
 </details>
 
+<details>
+<summary><strong>Does auditing work with saveQuietly() or withoutEvents()?</strong></summary>
+
+No. Recordkeeper relies on Eloquent model events (`created`, `updated`, `deleted`, `restored`) to capture changes. Methods like `saveQuietly()`, `deleteQuietly()`, `Model::withoutEvents()`, and raw DB queries suppress these events, so **no audit is recorded and rollback is not possible**.
+
+If you need to bypass other observers but still want auditing, use `Recordkeeper::log()` to manually record the change:
+
+```php
+$oldValues = $model->getOriginal();
+$model->saveQuietly();
+
+Recordkeeper::log('manual.update', subject: $model, context: [
+    'old' => $oldValues,
+    'new' => $model->toArray(),
+]);
+```
+
+Note that manual log entries are **not rollbackable** — they are informational records only. For full audit and rollback support, use standard `save()`, `update()`, `delete()`, and `restore()` methods.
+</details>
+
 ---
 
 ## ⚡ Performance
@@ -968,25 +988,131 @@ class Order extends Model implements \OwenIt\Auditing\Contracts\Auditable
 | **8 أوامر Artisan** | بحث، تتبع مباشر، إحصائيات، تراجع، تنظيف | من سطر الأوامر |
 | **4 محركات تخزين** | قاعدة بيانات، Redis، سجلات، Null | `RECORDKEEPER_DRIVER=...` |
 
-### حماية البيانات
+### حماية البيانات والخصوصية
+
+البيانات الحساسة تُعالج **قبل** وصولها لمخزن التدقيق — لا تُخزّن بنص صريح أبداً.
+
+| الطبقة | الآلية | قابل للاسترجاع؟ |
+| --- | --- | --- |
+| **استبعاد عام** | حقول مثل `password` و `remember_token` لا تُخزّن أبداً | — |
+| **إخفاء تلقائي** | الحقول المطابقة لأنماط مثل `secret`، `token`، `cvv`، `ssn`، `iban` تُستبدل بـ `***` | لا |
+| **إخفاء صريح** | `#[Redact('field')]` على الموديل | لا |
+| **تشفير** | `#[Encrypt('field')]` — تشفير AES في التخزين | نعم — يُفك تلقائياً عند التراجع |
 
 ```php
-#[Redact('cvv')]           // يُستبدل بـ *** — غير قابل للاسترجاع
-#[Encrypt('national_id')]  // يُشفّر بـ AES — يُفك تلقائياً عند التراجع
+#[Redact('cvv', 'date_of_birth')]
+#[Encrypt('national_id')]
 class Payment extends Model implements \OwenIt\Auditing\Contracts\Auditable
 {
     use AuditsChanges;
 }
 ```
 
-البيانات الحساسة تُعالج **قبل** وصولها لمخزن التدقيق. كلمات المرور والتوكنات وأرقام البطاقات تُخفى تلقائياً بدون إعداد.
-
 ### التراجع عن التغييرات
 
+استرجاع أي تغيير — فردي أو مجموعة — مع معاينة اختيارية قبل التطبيق.
+
 ```php
-Recordkeeper::rollback($auditId, dryRun: true);  // معاينة
-Recordkeeper::rollback($auditId);                 // تطبيق
-Recordkeeper::rollbackBatch('nightly-import');     // تراجع مجموعة
+Recordkeeper::rollback($auditId, dryRun: true);  // معاينة (لا يتغير شيء)
+Recordkeeper::rollback($auditId);                 // تطبيق التراجع
+Recordkeeper::rollbackBatch('nightly-import');     // تراجع مجموعة كاملة
+```
+
+| الحدث الأصلي | إجراء التراجع |
+| --- | --- |
+| `created` | يُحذف الموديل |
+| `updated` | تُستعاد القيم القديمة |
+| `deleted` | يُستعاد الموديل (يدعم SoftDeletes) |
+
+### تجميع التدقيق (Batch)
+
+تجميع التغييرات المرتبطة تحت معرّف واحد للتراجع الذري:
+
+```php
+Recordkeeper::batch('nightly-import-2025-01', function () {
+    Order::create([...]);
+    Order::create([...]);
+    $inventory->decrement('stock', 50);
+    // جميع سجلات التدقيق تشترك بنفس batch_id
+});
+
+// لاحقاً، التراجع عن الاستيراد بالكامل:
+Recordkeeper::rollbackBatch('nightly-import-2025-01');
+```
+
+### التسجيل اليدوي
+
+تسجيل أحداث مخصصة خارج تدفق Eloquent أو الـ Middleware:
+
+```php
+Recordkeeper::log('payment.gateway.timeout', context: [
+    'gateway' => 'stripe',
+    'attempt' => 3,
+]);
+
+Recordkeeper::log('export.triggered', subject: $order, context: [
+    'format' => 'csv',
+    'rows'   => 1500,
+]);
+```
+
+### الاستعلام عن سجلات التدقيق
+
+**عبر Eloquent Scopes:**
+
+```php
+Audit::forModel('Order')->latest()->get();
+Audit::forSubject($order)->get();
+Audit::forActor($admin)->get();
+Audit::forBatch('nightly-import')->get();
+Audit::rollbackable()->get();
+```
+
+**عبر Query Builder:**
+
+```php
+$audits = app(AuditQuery::class)
+    ->model('Order')
+    ->event(['created', 'updated'])
+    ->tag('finance')
+    ->since('-7 days')
+    ->latest()
+    ->limit(50)
+    ->builder()
+    ->get();
+```
+
+### محركات التخزين
+
+| المحرك | الأفضل لـ | التراجع | الاستعلام |
+| --- | --- | --- | --- |
+| **database** | تدقيق كامل (الافتراضي) | نعم | نعم |
+| **redis** | كتابة عالية الأداء | لا | محدود |
+| **log** | المراقبة والتصحيح | لا | لا |
+| **null** | الاختبارات | لا | لا |
+
+### التخصيص
+
+```php
+// محلل ممثل مخصص
+Recordkeeper::resolveActorUsing(function () {
+    return auth()->guard('admin')->user()
+        ?? auth()->guard('api')->user()
+        ?? auth()->user();
+});
+
+// إثراء السياق
+Recordkeeper::pushContext([
+    'deployment' => config('app.version'),
+    'server'     => gethostname(),
+]);
+
+// وسوم
+#[Auditable(tags: ['billing', 'critical'])]
+class Invoice extends Model { ... }
+
+// في وقت التشغيل
+Recordkeeper::withTags(['nightly-sync']);
 ```
 
 ### ثلاث طرق للإعداد
@@ -1013,6 +1139,56 @@ php artisan recordkeeper:prune --days=365 --yes
 php artisan recordkeeper:models
 ```
 
+### الأداء
+
+| العملية | التكلفة |
+| --- | --- |
+| تدقيق موديل (متزامن) | ~1-2ms |
+| تدقيق موديل (غير متزامن) | < 0.5ms |
+| Route middleware | ~1-2ms |
+| Job/أمر/حدث | ~0.5-1ms |
+| تتبع HTTP | ~0.3ms |
+
+الميزات المعطّلة ليس لها أي تأثير على الأداء. لتقليل التكلفة في التطبيقات عالية الحركة: فعّل `queue.enabled`، استخدم `sample: 0.1` على المسارات المزدحمة، أو استخدم محرك `redis`.
+
+### الأسئلة الشائعة
+
+<details>
+<summary><strong>هل يحتاج إعداد كثير؟</strong></summary>
+
+لا. ثبّت، نفّذ التهجير، أضف `AuditsChanges` trait — هذا كل شيء. يعمل بإعدادات ذكية افتراضياً.
+</details>
+
+<details>
+<summary><strong>هل يبطئ تطبيقي؟</strong></summary>
+
+لا. ~1-2ms لكل تدقيق متزامن. فعّل `queue.enabled` لتقليلها إلى أقل من 0.5ms. الميزات المعطّلة ليس لها أي تكلفة.
+</details>
+
+<details>
+<summary><strong>هل يتوافق مع laravel-auditing الموجود؟</strong></summary>
+
+نعم. Recordkeeper يثبّت `laravel-auditing` كاعتماد ويبني فوقه. موديلاتك الحالية تستمر بالعمل. استبدل `Auditable` trait بـ `AuditsChanges` لفتح الميزات الإضافية.
+</details>
+
+<details>
+<summary><strong>هل يعمل التدقيق مع saveQuietly()؟</strong></summary>
+
+لا. Recordkeeper يعتمد على أحداث Eloquent. `saveQuietly()` و `deleteQuietly()` و `Model::withoutEvents()` تمنع هذه الأحداث، فلا يُنشأ سجل تدقيق ولا يمكن التراجع. استخدم `save()` و `update()` و `delete()` العادية للتدقيق الكامل.
+</details>
+
+<details>
+<summary><strong>كيف أتحكم بنمو بيانات التدقيق؟</strong></summary>
+
+عدة خيارات: اضبط `retention.default_days` لحذف السجلات القديمة تلقائياً، أو `#[Auditable(retentionDays: 90)]` لكل موديل، أو `sample` على المسارات المزدحمة، أو `threshold` لتحديد عدد السجلات لكل موديل.
+</details>
+
+<details>
+<summary><strong>هل يمكن تتبع الويب هوكس؟</strong></summary>
+
+نعم. الويب هوكس الواردة هي طلبات HTTP عادية — أضف `audit.api` middleware أو فعّل `RECORDKEEPER_ROUTES=true`. الويب هوكس الصادرة عبر `Http::` تُتبع تلقائياً عند تفعيل `RECORDKEEPER_HTTP=true`.
+</details>
+
 ### مقارنة مع laravel-auditing
 
 | الميزة | laravel-auditing فقط | + Recordkeeper |
@@ -1024,11 +1200,12 @@ php artisan recordkeeper:models
 | الإعداد | مصفوفات PHP | **PHP 8 Attributes + Traits + Config** |
 | حماية الخصوصية | أساسية | **إخفاء تلقائي + تشفير AES** |
 | التراجع | يدوي | **بضغطة واحدة مع معاينة** |
+| التجميع (Batch) | لا | **نعم — تراجع ذري لمجموعة** |
 | أدوات سطر الأوامر | لا | **8 أوامر** |
 | محركات التخزين | قاعدة بيانات فقط | **4 محركات** |
 
 ---
 
-للتوثيق الكامل وأمثلة الكود التفصيلية، راجع الأقسام الإنجليزية أعلاه.
+للتوثيق الكامل ومرجع الإعدادات التفصيلي، راجع الأقسام الإنجليزية أعلاه.
 
 </div>
