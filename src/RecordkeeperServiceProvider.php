@@ -146,7 +146,30 @@ class RecordkeeperServiceProvider extends ServiceProvider
     {
         $this->app['config']->set('audit.implementation', Audit::class);
 
+        $this->syncAuditGuards();
+
         Relation::morphMap(array_fill_keys(Audit::PSEUDO_TYPES, Audit::class));
+    }
+
+    /**
+     * Auto-sync audit.user.guards with all auth guards so custom guards
+     * (e.g. company, admin) are resolved without manual config/audit.php edits.
+     */
+    private function syncAuditGuards(): void
+    {
+        if (! config('recordkeeper.guards.auto_detect', true)) {
+            return;
+        }
+
+        $authGuards = array_keys(config('auth.guards', []));
+
+        if (empty($authGuards)) {
+            return;
+        }
+
+        $existing = config('audit.user.guards', ['web', 'api']);
+        $merged = array_values(array_unique(array_merge($existing, $authGuards)));
+        $this->app['config']->set('audit.user.guards', $merged);
     }
 
     /**

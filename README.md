@@ -646,6 +646,41 @@ class NotifyOnCriticalChange
 }
 ```
 
+### HMVC / Module Support
+
+Recordkeeper auto-detects models inside HMVC module directories (`nwidart/laravel-modules`, `coolsam/modules`). The following paths are scanned automatically:
+
+- `Modules/{Name}/app/Models/`
+- `Modules/{Name}/src/Models/`
+- `Modules/{Name}/Models/`
+
+No configuration needed — just add the `AuditsChanges` trait to your module models and they'll be discovered by `recordkeeper:models` and audited automatically.
+
+To disable auto-detection:
+
+```php
+// config/recordkeeper.php
+'discovery' => [
+    'paths' => ['app/Models'],
+    'auto_modules' => false,
+],
+```
+
+### Auto Guard Detection
+
+Recordkeeper automatically registers all guards from your `config/auth.php` with the auditing system. Custom guards like `admin`, `company`, or `sanctum` are detected without manual configuration.
+
+To disable auto-detection and manage guards manually:
+
+```php
+// config/recordkeeper.php
+'guards' => [
+    'auto_detect' => false,
+    'web' => true,
+    'api' => true,
+],
+```
+
 ### Async Queue Writes
 
 For high-traffic applications, offload audit writes to a background queue:

@@ -51,6 +51,9 @@ final class DiscoverAuditableModels
      */
     private function discoverModels(array $paths): array
     {
+        if (config('recordkeeper.discovery.auto_modules', true)) {
+            $paths = array_unique(array_merge($paths, $this->detectModulePaths()));
+        }
         $models = [];
 
         foreach ($paths as $path) {
@@ -67,6 +70,36 @@ final class DiscoverAuditableModels
         }
 
         return $models;
+    }
+
+    /**
+     * Auto-detect HMVC module model directories (nwidart/laravel-modules, coolsam/modules).
+     *
+     * @return list<string> Relative paths to module model directories.
+     */
+    private function detectModulePaths(): array
+    {
+        $paths = [];
+
+        foreach (['Modules', 'modules'] as $modulesDir) {
+            $dir = base_path($modulesDir);
+            if (! is_dir($dir)) {
+                continue;
+            }
+
+            foreach (File::directories($dir) as $moduleDir) {
+                $moduleName = basename($moduleDir);
+
+                foreach (['app/Models', 'src/Models', 'Models'] as $modelDir) {
+                    $candidate = $modulesDir.'/'.$moduleName.'/'.$modelDir;
+                    if (is_dir(base_path($candidate))) {
+                        $paths[] = $candidate;
+                    }
+                }
+            }
+        }
+
+        return $paths;
     }
 
     /**

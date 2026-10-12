@@ -52,7 +52,15 @@ return [
         'per_model' => [],
     ],
 
+    /*
+     * Guards configuration.
+     *
+     * When 'auto_detect' is true, all guards from config/auth.php are
+     * automatically registered with laravel-auditing's UserResolver.
+     * Set to false to only use the guards listed below.
+     */
     'guards' => [
+        'auto_detect' => true,
         'web' => true,
         'api' => true,
     ],
@@ -78,8 +86,18 @@ return [
         'tag' => null,
     ],
 
+    /*
+     * Model discovery paths.
+     *
+     * HMVC modules (nwidart/laravel-modules, coolsam/modules) are auto-detected:
+     * Modules/{Name}/app/Models, Modules/{Name}/src/Models, and Modules/{Name}/Models
+     * are scanned automatically — no need to list them here.
+     *
+     * Set 'auto_modules' to false to disable automatic module scanning.
+     */
     'discovery' => [
         'paths' => ['app/Models'],
+        'auto_modules' => true,
     ],
 
     /*
