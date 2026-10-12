@@ -10,24 +10,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('audits', function (Blueprint $table): void {
-            $table->string('guard', 30)->nullable()->after('tags');
-            $table->string('batch_id', 100)->nullable()->after('guard');
-            $table->json('context')->nullable()->after('batch_id');
-            $table->string('source', 255)->nullable()->after('context');
-            $table->softDeletes();
-
-            $table->index('event');
-            $table->index('guard');
-            $table->index('created_at');
-            $table->index('deleted_at');
-            $table->index('user_id');
-            $table->index('source');
-            $table->index(['batch_id', 'event']);
-            $table->index(['event', 'created_at']);
-            $table->index(['auditable_type', 'auditable_id', 'created_at']);
-            $table->index(['auditable_type', 'auditable_id', 'event'], 'audits_auditable_event_index');
-        });
+        if (! Schema::hasTable('audits')) {
+            $this->createAuditsTable();
+        } else {
+            $this->extendAuditsTable();
+        }
 
         Schema::create('audit_http_requests', function (Blueprint $table): void {
             $table->id();
@@ -50,6 +37,66 @@ return new class extends Migration
             $table->foreignId('audit_id')->constrained('audits')->cascadeOnDelete();
             $table->string('tag', 100)->index();
             $table->index(['audit_id', 'tag']);
+        });
+    }
+
+    private function createAuditsTable(): void
+    {
+        $connection = config('audit.drivers.database.connection', config('database.default'));
+        $morphPrefix = config('audit.user.morph_prefix', 'user');
+
+        Schema::connection($connection)->create('audits', function (Blueprint $table) use ($morphPrefix): void {
+            $table->bigIncrements('id');
+            $table->string($morphPrefix.'_type')->nullable();
+            $table->unsignedBigInteger($morphPrefix.'_id')->nullable();
+            $table->string('event');
+            $table->morphs('auditable');
+            $table->text('old_values')->nullable();
+            $table->text('new_values')->nullable();
+            $table->text('url')->nullable();
+            $table->ipAddress('ip_address')->nullable();
+            $table->string('user_agent', 1023)->nullable();
+            $table->string('tags')->nullable();
+            $table->string('guard', 30)->nullable();
+            $table->string('batch_id', 100)->nullable();
+            $table->json('context')->nullable();
+            $table->string('source', 255)->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+
+            $table->index([$morphPrefix.'_id', $morphPrefix.'_type']);
+            $table->index('event');
+            $table->index('guard');
+            $table->index('created_at');
+            $table->index('deleted_at');
+            $table->index($morphPrefix.'_id');
+            $table->index('source');
+            $table->index(['batch_id', 'event']);
+            $table->index(['event', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'event'], 'audits_auditable_event_index');
+        });
+    }
+
+    private function extendAuditsTable(): void
+    {
+        Schema::table('audits', function (Blueprint $table): void {
+            $table->string('guard', 30)->nullable()->after('tags');
+            $table->string('batch_id', 100)->nullable()->after('guard');
+            $table->json('context')->nullable()->after('batch_id');
+            $table->string('source', 255)->nullable()->after('context');
+            $table->softDeletes();
+
+            $table->index('event');
+            $table->index('guard');
+            $table->index('created_at');
+            $table->index('deleted_at');
+            $table->index('user_id');
+            $table->index('source');
+            $table->index(['batch_id', 'event']);
+            $table->index(['event', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'created_at']);
+            $table->index(['auditable_type', 'auditable_id', 'event'], 'audits_auditable_event_index');
         });
     }
 
