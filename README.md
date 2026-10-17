@@ -13,7 +13,7 @@
     <a href="https://packagist.org/packages/laraarabdev/recordkeeper"><img src="https://img.shields.io/packagist/dt/laraarabdev/recordkeeper.svg?style=flat-square" alt="Total Downloads"></a>
     <a href="https://packagist.org/packages/laraarabdev/recordkeeper"><img src="https://img.shields.io/packagist/l/laraarabdev/recordkeeper.svg?style=flat-square" alt="License"></a>
     <a href="https://packagist.org/packages/laraarabdev/recordkeeper"><img src="https://img.shields.io/packagist/php-v/laraarabdev/recordkeeper.svg?style=flat-square" alt="PHP"></a>
-    <a href="https://laravel.com"><img src="https://img.shields.io/badge/laravel-11.x%20%7C%2012.x-red?style=flat-square" alt="Laravel"></a>
+    <a href="https://laravel.com"><img src="https://img.shields.io/badge/laravel-11.x%20%7C%2012.x%20%7C%2013.x-red?style=flat-square" alt="Laravel"></a>
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 
 <p align="center">
     Track every model change, route hit, queued job, Artisan command, and application event — with one-click rollback, privacy controls, and zero config arrays.<br>
-    Built on <a href="https://laravel-auditing.com/">owen-it/laravel-auditing</a> · PHP 8.2 – 8.4 · Laravel 11 / 12
+    Built on <a href="https://laravel-auditing.com/">owen-it/laravel-auditing</a> · PHP 8.2 – 8.4 · Laravel 11 / 12 / 13
 </p>
 
 <p align="center">
@@ -93,7 +93,7 @@ Every `create`, `update`, `delete`, and `restore` on that model is now tracked a
 | Requirement | Version |
 | --- | --- |
 | PHP | 8.2, 8.3, or 8.4 |
-| Laravel | 11 or 12 |
+| Laravel | 11, 12, or 13 |
 | owen-it/laravel-auditing | ^13.0 or ^14.0 (auto-installed) |
 
 ---
@@ -942,9 +942,9 @@ composer infection      # Mutation testing
 
 | PHP | Laravel | Status |
 | --- | --- | --- |
-| 8.2 | 11 / 12 | Supported |
-| 8.3 | 11 / 12 | Supported |
-| 8.4 | 11 / 12 | Supported |
+| 8.2 | 11 / 12 / 13 | Supported |
+| 8.3 | 11 / 12 / 13 | Supported |
+| 8.4 | 11 / 12 / 13 | Supported |
 
 ---
 
